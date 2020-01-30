@@ -8,3 +8,8 @@ repos:
     -   id: check-added-large-files
     -   id: no-commit-to-branch
         args: [--branch, master]
+
+-   repo: git://github.com/doublify/pre-commit-clang-format
+    rev: master
+    hooks:
+    -   id: clang-format
