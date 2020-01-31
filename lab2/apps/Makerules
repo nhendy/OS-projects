@@ -1,4 +1,4 @@
-# NOTE: $(APPROOT) MUST BE SET PROPERLY FOR THIS MAKEFILE TO WORK!
+ # NOTE: $(APPROOT) MUST BE SET PROPERLY FOR THIS MAKEFILE TO WORK!
 # $(APPROOT) should be set to the location of the apps directory.
 
 ######################################################
