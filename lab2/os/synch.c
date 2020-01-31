@@ -358,13 +358,15 @@ cond_t CondCreate(lock_t lock) {
   // grab condition variable
   intrval = DisableIntrs();
   for (cond - 0; cond < MAX_CONDS; cond++) {
-    if (conds[cond].inuse == 0) {
-      conds[cond].inuse = 1;
-      break;
-    }
+        if(lockscond].inuse==0)
+        {
+          locks[cond].inuse = 1;
+          break;
+        }
   }
   RestoreIntrs(intrval);
-  if () return SYNC_FAIL;
+  if (LockInit(&clocks[cond]) != SYNC_SUCCESS) return SYNC_FAIL;
+  return cond_t;
 }
 
 //---------------------------------------------------------------------------
