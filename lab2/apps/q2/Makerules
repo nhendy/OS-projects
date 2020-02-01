@@ -6,6 +6,7 @@
 FINALHDRS+=../include/circular_buffer.h ../include/common.h
 APPROOT=../..
 INCDIR+=-I../include
+INTERNAL_LIBS_DIR:=../common
 
 top: default
 
