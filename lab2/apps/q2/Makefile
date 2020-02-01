@@ -1,3 +1,4 @@
+# TODO:(nhendy) better way to blacklist certain dirs
 TARGET_DIRS:=$(abspath $(filter-out $(wildcard include*),$(filter-out $(wildcard Make*),$(shell ls)))
 
 print-%:

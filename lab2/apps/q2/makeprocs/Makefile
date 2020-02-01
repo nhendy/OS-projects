@@ -6,9 +6,9 @@
 # this way because the build procedure for all apps is basically the same.
 
 
-SRCS=makeprocs.c circular_buffer.c
+SRCS=makeprocs.c
 EXEC=makeprocs.dlx.obj
-
+INTERNAL_LIBS_OBJS=work/circular_buffer.o
 $(warning "Including ../Makerules")
 include ../Makerules
 

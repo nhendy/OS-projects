@@ -3,6 +3,7 @@
 # in the Makefiles of the subdirectories of the top-level
 # app directory
 
+# NOTE: (nhendy) this var is not needed
 HDRS=usertraps.h
 FINALHDRS+=../include/spawn.h
 APPROOT=../..

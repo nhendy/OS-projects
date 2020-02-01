@@ -1,5 +1,5 @@
 # Application-specific makefile.  This file only needs to
-# set the APPROOT, SRCS, HDRS, and EXEC variables properly 
+# set the APPROOT, SRCS, HDRS, and EXEC variables properly
 # (i.e. the location of the apps directory in relation to this Makefile), and
 # then include the Makerules file from the main apps directory.
 # All the real work in done in Makerules.  Things are setup
@@ -9,7 +9,8 @@
 SRCS=makeprocs.c
 EXEC=makeprocs.dlx.obj
 
+# lab2/apps/example/Makerules
 include ../Makerules
 
+# lab2/apps/Makerules
 include $(APPROOT)/Makerules
-
