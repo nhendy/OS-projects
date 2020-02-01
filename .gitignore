@@ -1,3 +1,9 @@
+# DLXOS files
+*.dljx
+*.obj
+*.lst
+*.dlx
+*.depend
 # General
 .DS_Store
 .AppleDouble
