@@ -4,7 +4,7 @@
 #include "usertraps.h"
 
 // Helper function
-void memset_zero(char* const data, int n) {
+void memsetZero(char* const data, int n) {
   int i;
   for (i = 0; i < n; ++i) {
     data[i] = 0;
@@ -12,15 +12,15 @@ void memset_zero(char* const data, int n) {
 }
 
 // Caller handles memory allocation
-int init_circular_buffer(circular_buffer* const buffer) {
+int initCircularBuffer(CircularBuffer* const buffer) {
   buffer->read_index = 0;
   buffer->write_index = 0;
-  memset_zero(buffer->buffer, BUFFER_MAX_SIZE);
+  memsetZero(buffer->buffer, BUFFER_MAX_SIZE);
   return TRUE;
 }
 
 // Write one char into the `buffer`.
-int write(circular_buffer* const buffer, const char* const data) {
+int write(CircularBuffer* const buffer, const char* const data) {
   int buffer_size = sizeof(buffer->buffer) / sizeof(buffer->buffer[0]);
   if ((buffer->write_index + 1) % buffer_size == buffer->read_index) {
     Printf("BUFFER IS FULLL!!! ERROR");
@@ -32,7 +32,7 @@ int write(circular_buffer* const buffer, const char* const data) {
 }
 
 // Read one char from `buffer` and place it where `result` is pointing to.
-int read(circular_buffer* const buffer, char* const result) {
+int read(CircularBuffer* const buffer, char* const result) {
   int buffer_size = sizeof(buffer->buffer) / sizeof(buffer->buffer[0]);
   if (buffer->read_index == buffer->write_index) {
     Printf("BUFFER IS EMPTY!!! ERROR");
