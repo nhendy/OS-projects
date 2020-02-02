@@ -15,7 +15,8 @@ ConsumerProducerContext decodeArgs(const int argc,
   CircularBuffer* circ_buffer_ptr;
 
   if (argc != NUM_CMDLINE_ARGS) {
-    Printf("Wrong number of args\n");
+    LOG("Wrong number of args.");
+    Printf("Got %d. Expected %d\n", argc, NUM_CMDLINE_ARGS);
     Exit();
   }
 

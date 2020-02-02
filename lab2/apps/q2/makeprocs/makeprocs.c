@@ -20,9 +20,8 @@ void main(int argc, char** argv) {
   char producer_sem_str[10];
   char consumer_sem_str[10];
   char circ_buff_handle_str[10];
-
   if (argc != 2) {
-    Printf("Wrong number of args\n");
+    LOG("Wrong number of args\n");
     Exit();
   }
 

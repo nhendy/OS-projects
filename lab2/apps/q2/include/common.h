@@ -24,4 +24,8 @@ typedef struct {
 // Max circular buffer size. Add one extre slot
 // to be used to check fullness.
 #define BUFFER_MAX_SIZE sizeof("Hello world") + 1
+// TODO:(nhendy) Printf doesn't support strings
+#define LOG(msg)              \
+  Printf("[%d]: ", __LINE__); \
+  Printf(msg);
 #endif
