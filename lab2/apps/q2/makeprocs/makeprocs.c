@@ -15,11 +15,13 @@ void main(int argc, char** argv) {
   sem_t producer_sem;
   sem_t consumer_sem;
   sem_t all_processes_done_sem;
+  lock_t shared_mu;
   // Args for child processes
   char all_processes_done_sem_str[10];
   char producer_sem_str[3];
   char consumer_sem_str[3];
   char circ_buff_handle_str[3];
+  char shared_mu_str[3];
   if (argc != 2) {
     LOG("Wrong number of args\n");
     Exit();
@@ -62,21 +64,29 @@ void main(int argc, char** argv) {
     Exit();
   }
 
+  if ((shared_mu = lock_create()) == SYNC_FAIL) {
+    Printf("Failed to init shared_mu\n");
+    Exit();
+  }
+
   // Convert all semaphores and handle to str.
   ditoa(circ_buff_handle, circ_buff_handle_str);
   ditoa(producer_sem, producer_sem_str);
   ditoa(consumer_sem, consumer_sem_str);
   ditoa(all_processes_done_sem, all_processes_done_sem_str);
+  ditoa(shared_mu, shared_mu_str);
 
   for (i = 0; i < num_consumers; ++i) {
     process_create(CONSUMER_BINARY, circ_buff_handle_str, producer_sem_str,
-                   consumer_sem_str, all_processes_done_sem_str, NULL);
+                   consumer_sem_str, all_processes_done_sem_str, shared_mu_str,
+                   NULL);
     Printf("Process %d created\n", i);
   }
 
   for (i = 0; i < num_producers; ++i) {
     process_create(PRODUCER_BINARY, circ_buff_handle_str, producer_sem_str,
-                   consumer_sem_str, all_processes_done_sem_str, NULL);
+                   consumer_sem_str, all_processes_done_sem_str, shared_mu_str,
+                   NULL);
     Printf("Process %d created\n", i);
   }
 
