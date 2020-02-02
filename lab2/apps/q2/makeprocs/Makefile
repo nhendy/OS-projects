@@ -9,10 +9,6 @@
 SRCS=makeprocs.c
 EXEC=makeprocs.dlx.obj
 INTERNAL_LIBS_OBJS=work/circular_buffer.o
-$(warning "Including ../Makerules")
 include ../Makerules
 
-$(warning "Including $(APPROOT)/Makerules")
 include $(APPROOT)/Makerules
-
-$(warning "Done")

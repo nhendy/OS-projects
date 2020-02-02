@@ -6,7 +6,7 @@
 # this way because the build procedure for all apps is basically the same.
 
 
-SRCS=consumer.c ../common/circular_buffer.c
+SRCS=consumer.c
 EXEC=consumer.dlx.obj
 INTERNAL_LIBS_OBJS=work/circular_buffer.o work/utils.o
 # lab2/apps/example/Makerules

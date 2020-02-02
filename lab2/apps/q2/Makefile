@@ -1,19 +1,21 @@
-# TODO:(nhendy) better way to blacklist certain dirs
-TARGET_DIRS:=$(abspath $(filter-out $(wildcard include*),$(filter-out $(wildcard Make*),$(shell ls)))
 
 print-%:
 	$(warning $(TARGET_DIRS))
 	@echo $* = $($*)
 
+# TODO:(nhendy) better way to loop over dirs
 default:
-	for dir in $(TARGET_DIRS); do \
-    	cd $$dir; make; \
-	done
+	cd consumer; make
+	cd producer; make
+	cd makeprocs; make
+	@echo "Done"
 
 clean:
-	for dir in $(TARGET_DIRS); do \
-    	cd $$dir; make clean; \
-	done
+	cd consumer; make clean
+	cd producer; make clean
+	cd makeprocs; make clean
+	@echo "Done"
+
 
 run:
 	$(error Not implemented yet)
