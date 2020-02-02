@@ -8,12 +8,10 @@
 void fillBuffer(ConsumerProducerContext ctxt, const char* const word) {
   int i;
   for (i = 0; i < dstrlen(word); ++i) {
-    semWaitOrDie(ctxt.producer_sem);
-    lockAcquireOrDie(ctxt.shared_mu);
-    write(ctxt.circ_buffer_ptr, &word[i]);
-    Printf("Producer %d inserted %c\n", getpid(), word[i]);
-    lockReleaseOrDie(ctxt.shared_mu);
-    semSignalOrDie(ctxt.consumer_sem);
+    GUARD_EXPRESSIONS_CONS_PROD_CTXT(
+        ctxt.producer_sem, ctxt.consumer_sem, ctxt.shared_mu,
+        write(ctxt.circ_buffer_ptr, &word[i]),
+        Printf("Producer %d inserted %c\n", getpid(), word[i]));
   }
 }
 

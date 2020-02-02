@@ -19,7 +19,6 @@ ConsumerProducerContext decodeArgs(const int argc,
   ctxt.producer_sem = dstrtol(argv[2], NULL, 10);
   ctxt.consumer_sem = dstrtol(argv[3], NULL, 10);
   ctxt.all_processes_done_sem = dstrtol(argv[4], NULL, 10);
-  ctxt.all_processes_done_sem = dstrtol(argv[5], NULL, 10);
   ctxt.shared_mu = dstrtol(argv[5], NULL, 10);
 
   // Attach to shared memory
@@ -32,7 +31,6 @@ ConsumerProducerContext decodeArgs(const int argc,
 }
 
 void cleanAndSignal(const ConsumerProducerContext ctxt) {
-  LOG("Signaling to exit");
   if (sem_signal(ctxt.all_processes_done_sem) != SYNC_SUCCESS) {
     Printf("Failed to sem_signal all_processes_done_sem");
     Exit();
