@@ -8,9 +8,7 @@
 
 SRCS=makeprocs.c
 EXEC=makeprocs.dlx.obj
-
-# lab2/apps/example/Makerules
+INTERNAL_LIBS_OBJS=work/circular_buffer.o
 include ../Makerules
 
-# lab2/apps/Makerules
 include $(APPROOT)/Makerules

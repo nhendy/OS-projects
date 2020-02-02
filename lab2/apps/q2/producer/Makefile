@@ -6,9 +6,9 @@
 # this way because the build procedure for all apps is basically the same.
 
 
-SRCS=makeprocs.c
-EXEC=makeprocs.dlx.obj
-
+SRCS=producer.c
+EXEC=producer.dlx.obj
+INTERNAL_LIBS_OBJS=work/circular_buffer.o work/utils.o
 # lab2/apps/example/Makerules
 include ../Makerules
 
