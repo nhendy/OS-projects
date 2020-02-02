@@ -5,8 +5,8 @@
 #include "utils.h"
 #include "circular_buffer.h"
 
-ConsumerProducerContext decode_args(const int argc,
-                                    const char* const* const argv) {
+ConsumerProducerContext decodeArgs(const int argc,
+                                   const char* const* const argv) {
   ConsumerProducerContext ctxt;
   uint32 circ_buff_handle;
   sem_t producer_sem;
@@ -33,7 +33,7 @@ ConsumerProducerContext decode_args(const int argc,
   return ctxt;
 }
 
-void clean_and_signal(const ConsumerProducerContext ctxt) {
+void cleanAndSignal(const ConsumerProducerContext ctxt) {
   if (sem_signal(ctxt.all_processes_done_sem) != SYNC_SUCCESS) {
     Printf("Failed to sem_signal all_processes_done_sem");
     Exit();
