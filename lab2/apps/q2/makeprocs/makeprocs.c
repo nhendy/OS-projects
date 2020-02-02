@@ -17,9 +17,9 @@ void main(int argc, char** argv) {
   sem_t all_processes_done_sem;
   // Args for child processes
   char all_processes_done_sem_str[10];
-  char producer_sem_str[10];
-  char consumer_sem_str[10];
-  char circ_buff_handle_str[10];
+  char producer_sem_str[3];
+  char consumer_sem_str[3];
+  char circ_buff_handle_str[3];
   if (argc != 2) {
     LOG("Wrong number of args\n");
     Exit();
@@ -70,13 +70,13 @@ void main(int argc, char** argv) {
 
   for (i = 0; i < num_consumers; ++i) {
     process_create(CONSUMER_BINARY, circ_buff_handle_str, producer_sem_str,
-                   consumer_sem, all_processes_done_sem, NULL);
+                   consumer_sem_str, all_processes_done_sem_str, NULL);
     Printf("Process %d created\n", i);
   }
 
   for (i = 0; i < num_producers; ++i) {
     process_create(PRODUCER_BINARY, circ_buff_handle_str, producer_sem_str,
-                   consumer_sem, all_processes_done_sem, NULL);
+                   consumer_sem_str, all_processes_done_sem_str, NULL);
     Printf("Process %d created\n", i);
   }
 

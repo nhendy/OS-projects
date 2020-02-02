@@ -8,12 +8,6 @@
 ConsumerProducerContext decodeArgs(const int argc,
                                    const char* const* const argv) {
   ConsumerProducerContext ctxt;
-  uint32 circ_buff_handle;
-  sem_t producer_sem;
-  sem_t consumer_sem;
-  sem_t all_processes_done_sem;
-  CircularBuffer* circ_buffer_ptr;
-
   if (argc != NUM_CMDLINE_ARGS) {
     LOG("Wrong number of args.");
     Printf("Got %d. Expected %d\n", argc, NUM_CMDLINE_ARGS);
@@ -27,7 +21,8 @@ ConsumerProducerContext decodeArgs(const int argc,
   ctxt.all_processes_done_sem = dstrtol(argv[4], NULL, 10);
 
   // Attach to shared memory
-  if ((ctxt.circ_buffer_ptr = shmat(circ_buff_handle)) == NULL) {
+  if ((ctxt.circ_buffer_ptr = (CircularBuffer*)shmat(ctxt.circ_buff_handle)) ==
+      NULL) {
     Printf("Failed to attach to memory\n");
     Exit();
   }
@@ -35,6 +30,7 @@ ConsumerProducerContext decodeArgs(const int argc,
 }
 
 void cleanAndSignal(const ConsumerProducerContext ctxt) {
+  LOG("Signaling to exit");
   if (sem_signal(ctxt.all_processes_done_sem) != SYNC_SUCCESS) {
     Printf("Failed to sem_signal all_processes_done_sem");
     Exit();
