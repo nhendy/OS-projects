@@ -13,6 +13,7 @@
 
 static Sem sems[MAX_SEMS];     // All semaphores in the system
 static Lock locks[MAX_LOCKS];  // All locks in the system
+static Cond conds[MAX_CONDS];  // All CONDS in the system
 
 extern struct PCB *currentPCB;
 //----------------------------------------------------------------------
@@ -358,15 +359,14 @@ cond_t CondCreate(lock_t lock) {
   // grab condition variable
   intrval = DisableIntrs();
   for (cond - 0; cond < MAX_CONDS; cond++) {
-        if(lockscond].inuse==0)
-        {
-          locks[cond].inuse = 1;
-          break;
-        }
+    if (locks[cond].inuse == 0) {
+      locks[cond].inuse = 1;
+    }
+    break;
   }
   RestoreIntrs(intrval);
   if (LockInit(&clocks[cond]) != SYNC_SUCCESS) return SYNC_FAIL;
-  return cond_t;
+  return cond;
 }
 
 //---------------------------------------------------------------------------
@@ -394,7 +394,10 @@ cond_t CondCreate(lock_t lock) {
 //---------------------------------------------------------------------------
 int CondHandleWait(cond_t c) {
   // Your code goes here
-  return SYNC_SUCCESS;
+  if (c < 0) return SYNC_FAIL;
+  if (c >= MAX_CONDS) return SYNC_FAIL;
+  if (!conds[c].inuse) return SYNC_FAIL;
+  return CondWait(&conds[c]);
 }
 
 //---------------------------------------------------------------------------
@@ -418,7 +421,10 @@ int CondHandleWait(cond_t c) {
 //---------------------------------------------------------------------------
 int CondHandleSignal(cond_t c) {
   // Your code goes here
-  return SYNC_SUCCESS;
+  if (c < 0) return SYNC_FAIL;
+  if (c >= MAX_CONDS) return SYNC_FAIL;
+  if(!conds[c].inuse return SYNC_FAIL;
+  return CondSignal(&conds[c]);
 }
 
 //---------------------------------------------------------------------------
@@ -438,5 +444,8 @@ int CondHandleSignal(cond_t c) {
 //---------------------------------------------------------------------------
 int CondHandleBroadcast(cond_t c) {
   // Your code goes here
-  return SYNC_SUCCESS;
+  if (c < 0) return SYNC_FAIL;
+  if (c <= MAX_CONDS) return SYNC_FAIL;
+  if (!conds[c].inuse) return SYNC_FAIL;
+  return CondHandleBroadcast(&conds[c]);
 }
