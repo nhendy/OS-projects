@@ -11,6 +11,7 @@ void main(int argc, char** argv) {
   sem_t sem;
   int i, j;
 
+  LOG("Injector is Up\n");
   shared_ctxt_handle = dstrtol(argv[1], NULL, 10);
   if ((shared_ctxt = shmat(shared_ctxt_handle)) == NULL) {
     LOG("Failed to shmat in injector");
@@ -19,7 +20,7 @@ void main(int argc, char** argv) {
 
   for (i = 0; i < shared_ctxt->injector_ctxt.num_molecules; i++) {
     molecule_amount_pr = shared_ctxt->injector_ctxt.molecules_to_inject[i];
-    Printf("Need %d molecules", molecule_amount_pr.amount_needed);
+    Printf("Need %d molecules\n", molecule_amount_pr.amount_needed);
     for (j = 0; j < molecule_amount_pr.amount_needed; ++j) {
       sem = lookupSemaphoreByMolecule(shared_ctxt, molecule_amount_pr.molecule);
       semSignalOrDie(sem);

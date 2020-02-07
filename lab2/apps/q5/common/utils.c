@@ -16,7 +16,7 @@ DebugString debugString(const Reaction reaction) {
   char buffer[10];
   dstrcpy(result.str, "Inputs are: ");
   for (i = 0; i < reaction.num_inputs; ++i) {
-    ditoa(reaction.inputs[i].amount_needed, buffer);
+    ditoa(reaction.inputs[i].amount_needed, buffer); /*  */
     dstrcat(result.str, buffer);
     dstrcat(result.str, reaction.inputs[i].molecule.name);
     if (i != reaction.num_inputs - 1) dstrcat(result.str, ", ");
@@ -94,14 +94,15 @@ void fillCtxtFromReactions(SharedReactionsContext* const shared_ctxt,
                            const Reaction* const reactions, const int len) {
   int i, j;
   SharedMoleculeSemaphorePair pair;
-  Printf("Number of reactions %d\n", len);
+  // Printf("Number of reactions %d\n", len);
 
   for (i = 0; i < len; ++i) {
     // TODO: (nhendy) inputs and outputs are programmatically the same
     // maybe diff using a index only. Too error prone!!!
-    Printf("Number of inputs of reaction %d: %d\n", i, reactions[i].num_inputs);
-    Printf("Number of outputs of reaction %d: %d\n", i,
-           reactions[i].num_outputs);
+    // Printf("Number of inputs of reaction %d: %d\n", i,
+    // reactions[i].num_inputs);
+    // Printf("Number of outputs of reaction %d: %d\n", i,
+    //        reactions[i].num_outputs);
     for (j = 0; j < reactions[i].num_inputs; ++j) {
       dstrcpy(pair.molecule.name, reactions[i].inputs[j].molecule.name);
       if (lookupSemaphoreByMolecule(shared_ctxt, pair.molecule) !=

@@ -47,6 +47,7 @@ void main(int argc, char** argv) {
     LOG("Failed to sem_create all_procs_done_sem");
     Exit();
   }
+
   process_create(INJECTOR_BINARY, shared_ctxt_handle_str, NULL);
   semWaitOrDie(shared_ctxt->all_procs_done_sem);
 }
