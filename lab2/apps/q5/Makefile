@@ -7,11 +7,13 @@ print-%:
 default:
 	cd makeprocs; make
 	cd injector; make
+	cd reactions; make
 	@echo "Done"
 
 clean:
 	cd makeprocs; make clean
 	cd injector; make clean
+	cd reactions; make clean
 	@echo "Done"
 
 

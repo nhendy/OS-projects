@@ -26,6 +26,8 @@ void fillCtxtFromReactions(SharedReactionsContext* const shared_ctxt,
 // expression.
 // SIDE := (NUM_MOLECULES)(MOLECULE) (+ (NUM_MOLECULES)(MOLECULE))*
 // REACTION := SIDE = SIDE
+// WARNING: if the molecule number is not specified it'll be assumed
+// to be zero.
 Reaction makeReactionFromString(const char* const reaction_str);
 // Simple string hash function that works automagically.
 int hash(const char* str);

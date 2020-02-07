@@ -94,15 +94,10 @@ void fillCtxtFromReactions(SharedReactionsContext* const shared_ctxt,
                            const Reaction* const reactions, const int len) {
   int i, j;
   SharedMoleculeSemaphorePair pair;
-  // Printf("Number of reactions %d\n", len);
 
   for (i = 0; i < len; ++i) {
     // TODO: (nhendy) inputs and outputs are programmatically the same
     // maybe diff using a index only. Too error prone!!!
-    // Printf("Number of inputs of reaction %d: %d\n", i,
-    // reactions[i].num_inputs);
-    // Printf("Number of outputs of reaction %d: %d\n", i,
-    //        reactions[i].num_outputs);
     for (j = 0; j < reactions[i].num_inputs; ++j) {
       dstrcpy(pair.molecule.name, reactions[i].inputs[j].molecule.name);
       if (lookupSemaphoreByMolecule(shared_ctxt, pair.molecule) !=
@@ -142,9 +137,9 @@ Reaction makeReactionFromString(const char* const reaction_str) {
     PARSING_INPUT_MOLECULE,
     PARSING_OUTPUT_MOLECULE
   } state;
+  memsetReaction(&reaction);
   state = PARSING_INPUT_MOLECULE;
   dstrcpy(reaction.reaction_string, reaction_str);
-  memsetReaction(&reaction);
   // TODO: (nhendy) simplify this state machine a bit.
   while (*curr_pos != '\0') {
     curr_char = *curr_pos;
@@ -176,7 +171,6 @@ Reaction makeReactionFromString(const char* const reaction_str) {
   }
   // Number of output molecules is the index we ended at plus 1.
   reaction.num_outputs = molecule_idx + 1;
-  Printf("Number of outputs %d\n", reaction.num_outputs);
   return reaction;
 }
 
