@@ -354,22 +354,32 @@ int LockHandleRelease(lock_t lock) {
 cond_t CondCreate(lock_t lock) {
   // Your code goes here
   cond_t cond;
-  unint32 intrval;
+  uint32 intrval;
   if (lock == INVALID_LOCK) return SYNC_FAIL;
   // grab condition variable
   intrval = DisableIntrs();
   for (cond = 0; cond < MAX_CONDS; cond++) {
     if (locks[cond].inuse == 0) {
       locks[cond].inuse = 1;
-      locks[cond].lock = lock;
+      // locks[cond] = lock;
     }
     break;
   }
   RestoreIntrs(intrval);
-  if (LockInit(&clocks[cond]) != SYNC_SUCCESS) return SYNC_FAIL;
+  if (CondInit(&locks[cond]) != SYNC_SUCCESS) return SYNC_FAIL;
   return cond;
 }
 
+int CondInit(Cond *c) {
+  if (!c) return SYNC_FAIL;
+  if (AQueueInit(&c->waiting) != QUEUE_SUCCESS) {
+    printf(
+        "FATAL ERROR: could not intitialize lock waiting queue in CondWait\n");
+    exitsim();
+  }
+  c->pid = -1;
+  return SYNC_FAIL;
+}
 //---------------------------------------------------------------------------
 //	CondHandleWait
 //
@@ -393,12 +403,25 @@ cond_t CondCreate(lock_t lock) {
 //	"actually" wake up until the process calling CondHandleSignal or
 //	CondHandleBroadcast releases the lock explicitly.
 //---------------------------------------------------------------------------
-int CondWait(cond_t *c) {
+int CondWait(Cond *c) {
   Link *l;
   int intrval;
-
   if (!c) return SYNC_FAIL;
+  intrval = DisableIntrs();
+  if ((l = AQueueAllocLink((void *)currentPCB)) == NULL) {
+    printf("FATAL ERROR: could not allocate link for queue}");
+    printf("CondWait");
+    if (AQueueInsertLast(&c->waiting, l) != QUEUE_SUCCESS) {
+      printf("FATAL ERROR: could not insert new link into cond Queue");
+      exitsim();
+    }
+  }
+  RestoreIntrs(intrval);
+  ProcessSleep();
+  // TODO: need to aquire lock again??
+  return SYNC_SUCCESS;
 }
+
 int CondHandleWait(cond_t c) {
   // Your code goes here
   if (c < 0) return SYNC_FAIL;
@@ -426,7 +449,7 @@ int CondHandleWait(cond_t c) {
 //	for such a process to run, the process invoking CondHandleSignal
 //	must explicitly release the lock after the call is complete.
 //---------------------------------------------------------------------------
-int CondSignal(cond_t c) {
+int CondSignal(Cond *c) {
   Link *l;
   int intrs;
   PCB *pcb;
