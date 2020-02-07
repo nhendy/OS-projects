@@ -358,9 +358,10 @@ cond_t CondCreate(lock_t lock) {
   if (lock == INVALID_LOCK) return SYNC_FAIL;
   // grab condition variable
   intrval = DisableIntrs();
-  for (cond - 0; cond < MAX_CONDS; cond++) {
+  for (cond = 0; cond < MAX_CONDS; cond++) {
     if (locks[cond].inuse == 0) {
       locks[cond].inuse = 1;
+      locks[cond].lock = lock;
     }
     break;
   }
@@ -392,6 +393,12 @@ cond_t CondCreate(lock_t lock) {
 //	"actually" wake up until the process calling CondHandleSignal or
 //	CondHandleBroadcast releases the lock explicitly.
 //---------------------------------------------------------------------------
+int CondWait(cond_t *c) {
+  Link *l;
+  int intrval;
+
+  if (!c) return SYNC_FAIL;
+}
 int CondHandleWait(cond_t c) {
   // Your code goes here
   if (c < 0) return SYNC_FAIL;
@@ -419,11 +426,37 @@ int CondHandleWait(cond_t c) {
 //	for such a process to run, the process invoking CondHandleSignal
 //	must explicitly release the lock after the call is complete.
 //---------------------------------------------------------------------------
+int CondSignal(cond_t c) {
+  Link *l;
+  int intrs;
+  PCB *pcb;
+  if (!c) return SYNC_FAIL;
+
+  intrs = DisableIntrs();
+  dbprintf("CondBroadcast: Process %d broadcasting on cond %d.\n",
+           GetCurrentPid(), (int)(c = conds));
+  while (!AQueueEmpty(&c->waiting)) {
+    l = AQueueFirst(&c->waiting);
+    pcb = (PCB *)AQueueObject(l);
+    if (AQueueRemove(&l) != QUEUE_SUCCESS) {
+      printf(
+          "FATAL ERROR: could not remove link from semaphore queue in "
+          "CondBroadCast!\n");
+      exitsim();
+    }
+    dbprintf("CondBroadCast: Waking up PID %d.\n",
+             (int)(GetPidFromAddress(pcb)));
+    ProcessWakeup(&pcb);
+  }
+  RestoreIntrs(intrs);
+  return SYNC_SUCCESS;
+}
+
 int CondHandleSignal(cond_t c) {
   // Your code goes here
   if (c < 0) return SYNC_FAIL;
   if (c >= MAX_CONDS) return SYNC_FAIL;
-  if(!conds[c].inuse return SYNC_FAIL;
+  if (!conds[c].inuse) return SYNC_FAIL;
   return CondSignal(&conds[c]);
 }
 
@@ -442,10 +475,36 @@ int CondHandleSignal(cond_t c) {
 //	for such a process to run, the process invoking CondHandleBroadcast
 //	must explicitly release the lock after the call completion.
 //---------------------------------------------------------------------------
+int CondBroadcast(Cond *c) {
+  Link *l;
+  int intrs;
+  PCB *pcb;
+  if (!c) return SYNC_FAIL;
+
+  intrs = DisableIntrs();
+  dbprintf("CondBroadcast: Process %d broadcasting on cond %d.\n",
+           GetCurrentPid(), (int)(c = conds));
+  while (!AQueueEmpty(&c->waiting)) {
+    l = AQueueFirst(&c->waiting);
+    pcb = (PCB *)AQueueObject(l);
+    if (AQueueRemove(&l) != QUEUE_SUCCESS) {
+      printf(
+          "FATAL ERROR: could not remove link from semaphore queue in "
+          "CondBroadCast!\n");
+      exitsim();
+    }
+    dbprintf("CondBroadCast: Waking up PID %d.\n",
+             (int)(GetPidFromAddress(pcb)));
+    ProcessWakeup(&pcb);
+  }
+  RestoreIntrs(intrs);
+  return SYNC_SUCCESS;
+}
+
 int CondHandleBroadcast(cond_t c) {
   // Your code goes here
   if (c < 0) return SYNC_FAIL;
   if (c <= MAX_CONDS) return SYNC_FAIL;
   if (!conds[c].inuse) return SYNC_FAIL;
-  return CondHandleBroadcast(&conds[c]);
+  return CondBroadcast(&conds[c]);
 }
