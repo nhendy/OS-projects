@@ -41,6 +41,12 @@ typedef struct {
   int num_outputs;
   char reaction_string[100];
 } Reaction;
+// Context object used to inform the injector of what and how many
+// molecules to inject.
+typedef struct {
+  MoleculeAmountPair molecules_to_inject[5];
+  int num_molecules;
+} InjectorContext;
 // Wrapper struct to group molecule with its associated
 // semaphore.
 typedef struct {
@@ -52,6 +58,8 @@ typedef struct {
 // processes are done.
 typedef struct {
   SharedMoleculeSemaphorePair molecule_sems[NUM_MOLECULES];
+  InjectorContext injector_ctxt;
+  int len_molecule_sems;
   sem_t all_procs_done_sem;
 } SharedReactionsContext;
 #endif

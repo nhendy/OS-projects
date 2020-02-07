@@ -36,7 +36,6 @@ void printString(const char* const str) {
     Printf("%c", *str);
     str++;
   }
-  Printf("\n");
 }
 
 void memsetString(char* const str, const int len) {
@@ -76,6 +75,7 @@ void initCtxt(SharedReactionsContext* const shared_ctxt) {
     shared_ctxt->molecule_sems[i].sem = INVALID_SEMAPHORE_CONST;
     memsetString(shared_ctxt->molecule_sems[i].molecule.name, len);
   }
+  shared_ctxt->len_molecule_sems = 0;
 }
 
 void insertInSharedCtxt(SharedMoleculeSemaphorePair pair,
@@ -87,32 +87,46 @@ void insertInSharedCtxt(SharedMoleculeSemaphorePair pair,
     key++;
   }
   ctxt->molecule_sems[key] = pair;
+  ctxt->len_molecule_sems++;
 }
 
 void fillCtxtFromReactions(SharedReactionsContext* const shared_ctxt,
                            const Reaction* const reactions, const int len) {
   int i, j;
   SharedMoleculeSemaphorePair pair;
+  Printf("Number of reactions %d\n", len);
+
   for (i = 0; i < len; ++i) {
     // TODO: (nhendy) inputs and outputs are programmatically the same
     // maybe diff using a index only. Too error prone!!!
+    Printf("Number of inputs of reaction %d: %d\n", i, reactions[i].num_inputs);
+    Printf("Number of outputs of reaction %d: %d\n", i,
+           reactions[i].num_outputs);
     for (j = 0; j < reactions[i].num_inputs; ++j) {
+      dstrcpy(pair.molecule.name, reactions[i].inputs[j].molecule.name);
+      if (lookupSemaphoreByMolecule(shared_ctxt, pair.molecule) !=
+          INVALID_SEMAPHORE_CONST)
+        continue;
       if ((pair.sem = sem_create(0)) == SYNC_FAIL) {
-        Printf("Failed to sem_create. Exiting...");
+        LOG("Failed to sem_create. Exiting...");
         Exit();
       }
-      dstrcpy(pair.molecule.name, reactions[i].inputs[j].molecule.name);
       insertInSharedCtxt(pair, shared_ctxt);
     }
-    for (j = 0; j < reactions[i].outputs; ++j) {
+    for (j = 0; j < reactions[i].num_outputs; ++j) {
+      dstrcpy(pair.molecule.name, reactions[i].outputs[j].molecule.name);
+      if (lookupSemaphoreByMolecule(shared_ctxt, pair.molecule) !=
+          INVALID_SEMAPHORE_CONST)
+        continue;
       if ((pair.sem = sem_create(0)) == SYNC_FAIL) {
-        Printf("Failed to sem_create. Exiting...");
+        LOG("Failed to sem_create. Exiting...");
         Exit();
       }
-      dstrcpy(pair.molecule.name, reactions[i].outputs[j].molecule.name);
       insertInSharedCtxt(pair, shared_ctxt);
     }
   }
+  Printf("Total length of molecule-semaphore pairs %d\n",
+         shared_ctxt->len_molecule_sems);
 }
 
 Reaction makeReactionFromString(const char* const reaction_str) {
@@ -161,6 +175,7 @@ Reaction makeReactionFromString(const char* const reaction_str) {
   }
   // Number of output molecules is the index we ended at plus 1.
   reaction.num_outputs = molecule_idx + 1;
+  Printf("Number of outputs %d\n", reaction.num_outputs);
   return reaction;
 }
 
@@ -171,14 +186,32 @@ int hash(const char* str) {
   return hash;
 }
 
-sem_t lookupSemaphoreByMolecule(const SharedReactionsContext ctxt,
+sem_t lookupSemaphoreByMolecule(const SharedReactionsContext* const ctxt,
                                 const Molecule molecule) {
   int key, size;
-  size = sizeof(ctxt.molecule_sems) / sizeof(ctxt.molecule_sems[0]);
+  size = sizeof(ctxt->molecule_sems) / sizeof(ctxt->molecule_sems[0]);
   key = hash(molecule.name) % size;
-  while (dstrncmp(ctxt.molecule_sems[key].molecule.name, molecule.name,
-                  sizeof(molecule.name)) != 0) {
-    key = (key + 1) % size;
+  while (dstrncmp(ctxt->molecule_sems[key].molecule.name, molecule.name,
+                  sizeof(molecule.name)) != 0 &&
+         key < size) {
+    key = (key + 1);
   }
-  return ctxt.molecule_sems[key].sem;
+  if (key >= size) {
+    return INVALID_SEMAPHORE_CONST;
+  }
+  return ctxt->molecule_sems[key].sem;
+}
+
+void semSignalOrDie(sem_t sem) {
+  if (sem_signal(sem) == SYNC_FAIL) {
+    Printf("Weird. Couldn't sem_signal sem: %d, pid: %d\n", sem, getpid());
+    Exit();
+  }
+}
+
+void semWaitOrDie(sem_t sem) {
+  if (sem_wait(sem) == SYNC_FAIL) {
+    Printf("Weird. Couldn't sem_wait sem: %d, pid: %d\n", sem, getpid());
+    Exit();
+  }
 }
