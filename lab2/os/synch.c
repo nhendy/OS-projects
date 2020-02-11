@@ -355,18 +355,22 @@ cond_t CondCreate(lock_t lock) {
   // Your code goes here
   cond_t cond;
   uint32 intrval;
-  if (lock == INVALID_LOCK) return SYNC_FAIL;
+  // LOCK CHECKS
+  if (lock < 0) return INVALID_LOCK;
+  if (!locks[lock].inuse) return INVALID_LOCK;
+  if (!lock > MAX_LOCKS) return INVALID_LOCK;
   // grab condition variable
   intrval = DisableIntrs();
   for (cond = 0; cond < MAX_CONDS; cond++) {
-    if (locks[cond].inuse == 0) {
-      locks[cond].inuse = 1;
+    if (conds[cond].inuse == 0) {
+      conds[cond].l = lock;
+      conds[cond].inuse = 1;
       // locks[cond] = lock;
+      break;
     }
-    break;
   }
   RestoreIntrs(intrval);
-  if (CondInit(&locks[cond]) != SYNC_SUCCESS) return SYNC_FAIL;
+  if (CondInit(&conds[cond]) != SYNC_SUCCESS) return SYNC_FAIL;
   return cond;
 }
 
@@ -378,7 +382,7 @@ int CondInit(Cond *c) {
     exitsim();
   }
   c->pid = -1;
-  return SYNC_FAIL;
+  return SYNC_SUCCESS;
 }
 //---------------------------------------------------------------------------
 //	CondHandleWait
@@ -458,7 +462,7 @@ int CondSignal(Cond *c) {
   intrs = DisableIntrs();
   dbprintf("CondBroadcast: Process %d broadcasting on cond %d.\n",
            GetCurrentPid(), (int)(c = conds));
-  while (!AQueueEmpty(&c->waiting)) {
+  if (!AQueueEmpty(&c->waiting)) {
     l = AQueueFirst(&c->waiting);
     pcb = (PCB *)AQueueObject(l);
     if (AQueueRemove(&l) != QUEUE_SUCCESS) {
