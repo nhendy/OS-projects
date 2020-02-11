@@ -39,6 +39,7 @@ typedef struct {
   MoleculeAmountPair outputs[10];
   int num_inputs;
   int num_outputs;
+  int num_occurrences;
   char reaction_string[100];
 } Reaction;
 // Context object used to inform the injector of what and how many
@@ -61,5 +62,7 @@ typedef struct {
   InjectorContext injector_ctxt;
   int len_molecule_sems;
   sem_t all_procs_done_sem;
+  // TODO:(nhendy) this is temporary to get the desired printing behavior.
+  lock_t print_lock;
 } SharedReactionsContext;
 #endif

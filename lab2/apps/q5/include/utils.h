@@ -43,6 +43,18 @@ void insertInSharedCtxt(SharedMoleculeSemaphorePair pair,
 void semSignalOrDie(sem_t sem);
 // Same as above for waiting a semaphore.
 void semWaitOrDie(sem_t sem);
+// Acquire lock or exit process if invalid.
+void lockAcquireOrDie(lock_t mu);
+// Same as above for releasing a lock.
+void lockReleaseOrDie(lock_t mu);
+#define GUARD_EXPRESSIONS(mu, expr1, expr2) \
+  do {                                      \
+    lockAcquireOrDie(mu);                   \
+    expr1;                                  \
+    expr2;                                  \
+    lockReleaseOrDie(mu);                   \
+  } while (0)
+
 #define LOG(msg)              \
   Printf("[%d]: ", __LINE__); \
   Printf(msg);

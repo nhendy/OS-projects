@@ -121,8 +121,6 @@ void fillCtxtFromReactions(SharedReactionsContext* const shared_ctxt,
       insertInSharedCtxt(pair, shared_ctxt);
     }
   }
-  Printf("Total length of molecule-semaphore pairs %d\n",
-         shared_ctxt->len_molecule_sems);
 }
 
 Reaction makeReactionFromString(const char* const reaction_str) {
@@ -207,6 +205,20 @@ void semSignalOrDie(sem_t sem) {
 void semWaitOrDie(sem_t sem) {
   if (sem_wait(sem) == SYNC_FAIL) {
     Printf("Weird. Couldn't sem_wait sem: %d, pid: %d\n", sem, getpid());
+    Exit();
+  }
+}
+
+void lockAcquireOrDie(lock_t mu) {
+  if (lock_acquire(mu) == SYNC_FAIL) {
+    Printf("Weird. Couldn't lock_acquire lock: %d, pid: %d\n", mu, getpid());
+    Exit();
+  }
+}
+
+void lockReleaseOrDie(lock_t mu) {
+  if (lock_release(mu) == SYNC_FAIL) {
+    Printf("Weird. Couldn't lock_release lock: %d, pid: %d\n", mu, getpid());
     Exit();
   }
 }
