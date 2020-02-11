@@ -9,27 +9,26 @@ void main(int argc, char** argv) {
   uint32 shared_ctxt_handle;
   MoleculeAmountPair molecule_amount_pr;
   sem_t sem;
-  int i, j;
-  if (argc < 2) {
+  int i, j, molecule_to_inject_idx;
+  if (argc < 3) {
     LOG("Too few args in Injector. Exiting...\n");
     Exit();
   }
-  LOG("Injector is Up\n");
   shared_ctxt_handle = dstrtol(argv[1], NULL, 10);
+  molecule_to_inject_idx = dstrtol(argv[2], NULL, 10);
+
   if ((shared_ctxt = shmat(shared_ctxt_handle)) == NULL) {
     LOG("Failed to shmat in injector");
     Exit();
   }
 
-  for (i = 0; i < shared_ctxt->injector_ctxt.num_molecules; i++) {
-    molecule_amount_pr = shared_ctxt->injector_ctxt.molecules_to_inject[i];
-    for (j = 0; j < molecule_amount_pr.amount_needed; ++j) {
-      sem = lookupSemaphoreByMolecule(shared_ctxt, molecule_amount_pr.molecule);
-      semSignalOrDie(sem);
-      //   Printf("Injected ");
-      //   printString(molecule_amount_pr.molecule.name);
-      //   Printf("\n");
-    }
+  molecule_amount_pr =
+      shared_ctxt->injector_ctxt.molecules_to_inject[molecule_to_inject_idx];
+  for (j = 0; j < molecule_amount_pr.amount_needed; ++j) {
+    sem = lookupSemaphoreByMolecule(shared_ctxt, molecule_amount_pr.molecule);
+    semSignalOrDie(sem);
+    printString(molecule_amount_pr.molecule.name);
+    Printf(" injected into Radeon atmosphere, PID: %d\n", getpid());
   }
   semSignalOrDie(shared_ctxt->all_procs_done_sem);
 }

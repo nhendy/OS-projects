@@ -12,9 +12,10 @@ void main(int argc, char** argv) {
   uint32 shared_ctxt_handle, reactions_handle;
   int i;
   char shared_ctxt_handle_str[10], reactions_handle_str[10],
-      reaction_idx_str[10];
+      reaction_idx_str[10], injector_molecule_idx_str[10];
   const int kNumReactions =
       sizeof(REACTION_STRINGS) / sizeof(REACTION_STRINGS[0]);
+  int total_num_processes;
 
   if (argc < 3) {
     LOG("Too few args. Exiting ....\n");
@@ -63,13 +64,20 @@ void main(int argc, char** argv) {
   ditoa(reactions_handle, reactions_handle_str);
 
   // TODO: (nhendy) Change this number when all processes are running
-  if ((shared_ctxt->all_procs_done_sem = sem_create(0)) == SYNC_FAIL) {
+  total_num_processes =
+      shared_ctxt->injector_ctxt.num_molecules + kNumReactions;
+  if ((shared_ctxt->all_procs_done_sem =
+           sem_create(-(total_num_processes - 1))) == SYNC_FAIL) {
     LOG("Failed to sem_create all_procs_done_sem");
     Exit();
   }
 
-  // Spawn the injector
-  process_create(INJECTOR_BINARY, shared_ctxt_handle_str, NULL);
+  // Spawn the injector processes
+  for (i = 0; i < shared_ctxt->injector_ctxt.num_molecules; ++i) {
+    ditoa(i, injector_molecule_idx_str);
+    process_create(INJECTOR_BINARY, shared_ctxt_handle_str,
+                   injector_molecule_idx_str, NULL);
+  }
 
   // Spawn the reaction binaries
   for (i = 0; i < kNumReactions; ++i) {
