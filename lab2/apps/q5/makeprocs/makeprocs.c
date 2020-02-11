@@ -63,7 +63,6 @@ void main(int argc, char** argv) {
   ditoa(shared_ctxt_handle, shared_ctxt_handle_str);
   ditoa(reactions_handle, reactions_handle_str);
 
-  // TODO: (nhendy) Change this number when all processes are running
   total_num_processes =
       shared_ctxt->injector_ctxt.num_molecules + kNumReactions;
   if ((shared_ctxt->all_procs_done_sem =
