@@ -422,7 +422,7 @@ int CondWait(Cond *c) {
   }
   RestoreIntrs(intrval);
   ProcessSleep();
-  // TODO: need to aquire lock again??
+  if (LockHandleAcquire(c->l) != SYNC_SUCCESS) return 0;
   return SYNC_SUCCESS;
 }
 
@@ -460,18 +460,18 @@ int CondSignal(Cond *c) {
   if (!c) return SYNC_FAIL;
 
   intrs = DisableIntrs();
-  dbprintf("CondBroadcast: Process %d broadcasting on cond %d.\n",
-           GetCurrentPid(), (int)(c = conds));
+  dbprintf("CondSignalcast: Process %d signal on cond %d.\n", GetCurrentPid(),
+           (int)(c = conds));
   if (!AQueueEmpty(&c->waiting)) {
     l = AQueueFirst(&c->waiting);
     pcb = (PCB *)AQueueObject(l);
     if (AQueueRemove(&l) != QUEUE_SUCCESS) {
       printf(
           "FATAL ERROR: could not remove link from semaphore queue in "
-          "CondBroadCast!\n");
+          "CondSignalCast!\n");
       exitsim();
     }
-    dbprintf("CondBroadCast: Waking up PID %d.\n",
+    dbprintf("CondSignalCast: Waking up PID %d.\n",
              (int)(GetPidFromAddress(pcb)));
     ProcessWakeup(&pcb);
   }
