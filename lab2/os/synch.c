@@ -356,21 +356,32 @@ cond_t CondCreate(lock_t lock) {
   cond_t cond;
   uint32 intrval;
   // LOCK CHECKS
-  if (lock < 0) return INVALID_LOCK;
-  if (!locks[lock].inuse) return INVALID_LOCK;
-  if (!lock > MAX_LOCKS) return INVALID_LOCK;
+  dbprintf('c', "CondCreat: PID:%d\n", GetCurrentPid());
+  if (lock < 0) {
+    dbprintf('c', "Lock is < 0 in PID: %d", GetCurrentPid());
+    return INVALID_LOCK;
+  }
+
+  if (!locks[lock].inuse) {
+    dbprintf('c', "Lock is < 0 in PID: %d", GetCurrentPid());
+    return INVALID_LOCK;
+  }
+  if (lock > MAX_LOCKS) {
+    dbprintf('c', "Lock is > MAX_LOCKS in PID: %d", GetCurrentPid());
+    return INVALID_LOCK;
+  }
+  dbprintf('c', "CondCreat: PID:%d\n", GetCurrentPid());
   // grab condition variable
   intrval = DisableIntrs();
   for (cond = 0; cond < MAX_CONDS; cond++) {
     if (conds[cond].inuse == 0) {
       conds[cond].l = lock;
       conds[cond].inuse = 1;
-      // locks[cond] = lock;
       break;
     }
   }
-  RestoreIntrs(intrval);
   if (CondInit(&conds[cond]) != SYNC_SUCCESS) return SYNC_FAIL;
+  RestoreIntrs(intrval);
   return cond;
 }
 
@@ -382,6 +393,7 @@ int CondInit(Cond *c) {
     exitsim();
   }
   c->pid = -1;
+  c->lock = INVALID_LOCK;
   return SYNC_SUCCESS;
 }
 //---------------------------------------------------------------------------
@@ -412,17 +424,28 @@ int CondWait(Cond *c) {
   int intrval;
   if (!c) return SYNC_FAIL;
   intrval = DisableIntrs();
+  if (LockHandleRelease(c->l) != SYNC_SUCCESS) return SYNC_FAIL;
+  dbprintf('c', "CondWait: Process %d wait on cond %d.\n", GetCurrentPid(),
+           (int)(c - conds));
   if ((l = AQueueAllocLink((void *)currentPCB)) == NULL) {
     printf("FATAL ERROR: could not allocate link for queue}");
-    printf("CondWait");
-    if (AQueueInsertLast(&c->waiting, l) != QUEUE_SUCCESS) {
-      printf("FATAL ERROR: could not insert new link into cond Queue");
-      exitsim();
-    }
+    exitsim();
   }
-  RestoreIntrs(intrval);
+  if (AQueueInsertLast(&c->waiting, l) != QUEUE_SUCCESS) {
+    printf("FATAL ERROR: could not insert new link into cond Queue");
+    exitsim();
+  }
+
+  dbprintf('c', "CondWait: Process %d going to sleep cond %d.\n",
+           GetCurrentPid(), (int)(c - conds))
   ProcessSleep();
-  if (LockHandleAcquire(c->l) != SYNC_SUCCESS) return 0;
+  dbprintf('c', "CondWait: Process %d back from sleep cond %d.\n",
+           GetCurrentPid(), (int)(c - conds))
+  while (LockHandleAcquire(c->l) != SYNC_SUCCESS)
+    ;
+  dbprintf('c', "CondWait: Process %d acquired lock cond %d.\n",
+           GetCurrentPid(), (int)(c - conds))
+  RestoreIntrs(intrval);
   return SYNC_SUCCESS;
 }
 
@@ -430,7 +453,11 @@ int CondHandleWait(cond_t c) {
   // Your code goes here
   if (c < 0) return SYNC_FAIL;
   if (c >= MAX_CONDS) return SYNC_FAIL;
-  if (!conds[c].inuse) return SYNC_FAIL;
+  if (!conds[c].inuse) {
+    dbprintf('c', "CondHandleWait: Process %d  NOT INUSE cond %d.\n",
+             GetCurrentPid(), c);
+    return SYNC_FAIL;
+  }
   return CondWait(&conds[c]);
 }
 
@@ -460,9 +487,10 @@ int CondSignal(Cond *c) {
   if (!c) return SYNC_FAIL;
 
   intrs = DisableIntrs();
-  dbprintf("CondSignalcast: Process %d signal on cond %d.\n", GetCurrentPid(),
-           (int)(c = conds));
+  dbprintf('c', "CondSignalcast: Process %d signal on cond %d.\n",
+           GetCurrentPid(), (int)(c - conds));
   if (!AQueueEmpty(&c->waiting)) {
+
     l = AQueueFirst(&c->waiting);
     pcb = (PCB *)AQueueObject(l);
     if (AQueueRemove(&l) != QUEUE_SUCCESS) {
@@ -471,9 +499,12 @@ int CondSignal(Cond *c) {
           "CondSignalCast!\n");
       exitsim();
     }
-    dbprintf("CondSignalCast: Waking up PID %d.\n",
+    dbprintf('c', "CondSignalCast: Waking up PID %d.\n",
              (int)(GetPidFromAddress(pcb)));
-    ProcessWakeup(&pcb);
+    ProcessWakeup(pcb);
+  } else {
+    dbprintf('c', "Queue for cond: %d PID: %d is empty\n", (int)(c - conds),
+             GetCurrentPid());
   }
   RestoreIntrs(intrs);
   return SYNC_SUCCESS;
@@ -509,8 +540,8 @@ int CondBroadcast(Cond *c) {
   if (!c) return SYNC_FAIL;
 
   intrs = DisableIntrs();
-  dbprintf("CondBroadcast: Process %d broadcasting on cond %d.\n",
-           GetCurrentPid(), (int)(c = conds));
+  dbprintf('c', "CondBroadcast: Process %d broadcasting on cond %d.\n",
+           GetCurrentPid(), (int)(c - conds));
   while (!AQueueEmpty(&c->waiting)) {
     l = AQueueFirst(&c->waiting);
     pcb = (PCB *)AQueueObject(l);

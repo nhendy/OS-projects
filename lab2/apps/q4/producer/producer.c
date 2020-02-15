@@ -14,6 +14,8 @@ void main(int argc, char *argv[]) {
   sem_t sem_proc;
   int i = 0;
 
+  Printf("Producer %d is UP!!!\n", getpid());
+
   if (argc != NUM_CMDLINE_ARGS) {
     LOG("Incorrect number of arguments");
     Printf("Got %d.Expected %d\n", argc, NUM_CMDLINE_ARGS);
@@ -26,34 +28,28 @@ void main(int argc, char *argv[]) {
   empty = dstrtol(argv[5], NULL, 10);
 
   if ((circ_buff_ptr = (CircularBuffer *)shmat(h_mem)) == NULL) {
-    Printf("Error in mapping shared memory page");
+    Printf("Error in mapping shared memory page\n");
     Exit();
   }
 
-  for (i = 0; i <= dstrlen(HELLO_WORLD_STR); ++i) {
-    if (lock_acquire(buffer_lock) == SYNC_FAIL) {
-      Printf("Could not aquire lock: %d, pid: %d", buffer_lock);
-      Exit();
-    }
+  for (i = 0; i < dstrlen(HELLO_WORLD_STR); ++i) {
+    lockAcquireOrDie(buffer_lock);
 
     while (circ_buff_ptr->read_index ==
            (circ_buff_ptr->write_index + 1 % BUFFER_MAX_SIZE)) {
-      cond_wait(empty);
+      condWaitOrDie(empty);
     }
 
     circ_buff_ptr->buffer[circ_buff_ptr->write_index] = HELLO_WORLD_STR[i];
     circ_buff_ptr->write_index =
         (circ_buff_ptr->write_index + 1) % BUFFER_MAX_SIZE;
-    Printf("%c added from buffer, pid: %d", HELLO_WORLD_STR[i], getpid());
-    cond_signal(full);
-    if (lock_release(buffer_lock) == SYNC_FAIL) {
-      Printf("Could not release lock: %d, pid: %d", buffer_lock, getpid());
-      Exit();
-    }
-    Printf("consumer:PID %d is complete.\n", getpid());
-    if (sem_signal(sem_proc) == SYNC_FAIL) {
-      Printf("Bad semephore sem_proc %d in ", sem_proc);
-      Exit();
-    }
+    Printf("%c added from buffer, pid: %d\n", HELLO_WORLD_STR[i], getpid());
+    condSignalOrDie(full);
+    lockReleaseOrDie(buffer_lock);
+  }
+  Printf("producer:PID %d is complete.\n", getpid());
+  if (sem_signal(sem_proc) == SYNC_FAIL) {
+    Printf("Bad semephore sem_proc %d in %d\n.", sem_proc, getpid());
+    Exit();
   }
 }

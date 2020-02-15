@@ -27,6 +27,7 @@ void main(int argc, char *argv[]) {
   }
 
   numprocs = dstrtol(argv[1], NULL, 10);
+
   if ((h_mem = shmget()) == 0) {
     Printf("ERROR: could not allocate shared memory page in ");
     Printf(", exiting...\n");
@@ -44,7 +45,7 @@ void main(int argc, char *argv[]) {
     Exit();
   }
 
-  if ((s_procs_completed = sem_create((-(numprocs - 1)))) == SYNC_FAIL) {
+  if ((s_procs_completed = sem_create((-(2 * numprocs - 1)))) == SYNC_FAIL) {
     Printf("Failed to init all_processes_done_sem semaphore\n");
     Exit();
   }
