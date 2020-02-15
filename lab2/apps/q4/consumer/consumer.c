@@ -21,11 +21,11 @@ void main(int argc, char *argv[]) {
     Exit();
   }
 
-  h_mem = dstrol(argv[1], NULL, 10);
-  sem_proc = dstrol(argv[2], NULL, 10);
-  buffer_lock = dstrol(argv[3], NULL, 10);
-  full = dstrol(argv[4], NULL, 10);
-  empty = dstrol(argv[5], NULL, 10);
+  h_mem = dstrtol(argv[1], NULL, 10);
+  sem_proc = dstrtol(argv[2], NULL, 10);
+  buffer_lock = dstrtol(argv[3], NULL, 10);
+  full = dstrtol(argv[4], NULL, 10);
+  empty = dstrtol(argv[5], NULL, 10);
 
   if (circ_buff_ptr = ((CircularBuffer *)shmat(h_mem)) == NULL) {
     Printf("Error in mapping shared memory page");

@@ -1,7 +1,7 @@
 #include "lab2-api.h"
 #include "usertraps.h"
 #include "misc.h"
-#include "../q2/include/circular_buffer.h"
+#include "circular_buffer.h"
 
 void main(int argc, char *argv[]) {
   int numprocs = 0;
@@ -26,14 +26,14 @@ void main(int argc, char *argv[]) {
     Exit();
   }
 
-  numprocs = dstrol(argv[1], NULL, 10);
+  numprocs = dstrtol(argv[1], NULL, 10);
   if ((h_mem = shmget()) == 0) {
     Printf("ERROR: could not allocate shared memory page in ");
     Printf(", exiting...\n");
     Exit();
   }
 
-  if ((circ_buffer_ptr = (CircularBuffer *)shmat(circ_buffer_ptr)) == NULL) {
+  if ((circ_buffer_ptr = (CircularBuffer *)shmat(h_mem)) == NULL) {
     Printf("Could not map the shared page to virtual address in ");
     Printf(", exiting..\n");
     Exit();
@@ -44,7 +44,7 @@ void main(int argc, char *argv[]) {
     Exit();
   }
 
-  if (s_procs_completed = sem_create((-(numprocs - 1)))) {
+  if ((s_procs_completed = sem_create((-(numprocs - 1)))) == SYNC_FAIL) {
     Printf("Failed to init all_processes_done_sem semaphore\n");
     Exit();
   }
