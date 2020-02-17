@@ -359,19 +359,19 @@ cond_t CondCreate(lock_t lock) {
   dbprintf('c', "CondCreat: PID:%d\n", GetCurrentPid());
   if (lock < 0) {
     dbprintf('c', "Lock is < 0 in PID: %d", GetCurrentPid());
-    return INVALID_LOCK;
+    return INVALID_COND;
   }
 
   if (!locks[lock].inuse) {
-    dbprintf('c', "Lock is < 0 in PID: %d", GetCurrentPid());
-    return INVALID_LOCK;
+    dbprintf('c', "Lock is not acquired when calling CondCreate in PID: %d",
+             GetCurrentPid());
+    return INVALID_COND;
   }
-  if (lock > MAX_LOCKS) {
+  if (lock >= MAX_LOCKS) {
     dbprintf('c', "Lock is > MAX_LOCKS in PID: %d", GetCurrentPid());
-    return INVALID_LOCK;
+    return INVALID_COND;
   }
-  dbprintf('c', "CondCreat: PID:%d\n", GetCurrentPid());
-  // grab condition variable
+  // Grab condition variable
   intrval = DisableIntrs();
   for (cond = 0; cond < MAX_CONDS; cond++) {
     if (conds[cond].inuse == 0) {
@@ -380,6 +380,7 @@ cond_t CondCreate(lock_t lock) {
       break;
     }
   }
+  conds[cond].l = lock;
   if (CondInit(&conds[cond]) != SYNC_SUCCESS) return SYNC_FAIL;
   RestoreIntrs(intrval);
   return cond;
@@ -392,8 +393,6 @@ int CondInit(Cond *c) {
         "FATAL ERROR: could not intitialize lock waiting queue in CondWait\n");
     exitsim();
   }
-  c->pid = -1;
-  c->lock = INVALID_LOCK;
   return SYNC_SUCCESS;
 }
 //---------------------------------------------------------------------------
@@ -424,6 +423,7 @@ int CondWait(Cond *c) {
   int intrval;
   if (!c) return SYNC_FAIL;
   intrval = DisableIntrs();
+  dbprintf('c', "Releasing lock %d, PID: %d", c->l, GetCurrentPid());
   if (LockHandleRelease(c->l) != SYNC_SUCCESS) return SYNC_FAIL;
   dbprintf('c', "CondWait: Process %d wait on cond %d.\n", GetCurrentPid(),
            (int)(c - conds));
@@ -547,7 +547,7 @@ int CondBroadcast(Cond *c) {
     pcb = (PCB *)AQueueObject(l);
     if (AQueueRemove(&l) != QUEUE_SUCCESS) {
       printf(
-          "FATAL ERROR: could not remove link from semaphore queue in "
+          "FATAL ERROR: could not remove link from condition variable queue in "
           "CondBroadCast!\n");
       exitsim();
     }

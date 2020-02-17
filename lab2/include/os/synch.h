@@ -58,8 +58,6 @@ int LockAcquire(Lock *);
 int LockRelease(Lock *);
 
 typedef struct Cond {
-  // Your code goes here
-  int pid;  // do i need this to initialize?
   Queue waiting;
   uint32 inuse;
   lock_t l;
