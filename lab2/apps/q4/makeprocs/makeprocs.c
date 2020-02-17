@@ -16,13 +16,13 @@ void main(int argc, char *argv[]) {
   cond_t empty;
   lock_t buffer_lock;
 
-  // command line stuff
+  // Command line stuff
   char buffer_lock_str[10];
   char full_str[10];
   char empty_str[10];
 
   if (argc != 2) {
-    LOG("Imcorrect argument numbers");
+    LOG("Incorrect argument numbers");
     Exit();
   }
 
@@ -77,8 +77,7 @@ void main(int argc, char *argv[]) {
   }
 
   if (sem_wait(s_procs_completed) != SYNC_SUCCESS) {
-    Printf("Bad sem_wait s_procs_completed (%d) in ", s_procs_completed);
-    Printf("\n");
+    Printf("Bad sem_wait s_procs_completed PID: %d\n", getpid());
     Exit();
   }
   Printf("All other processes completed, exiting main process. \n");
