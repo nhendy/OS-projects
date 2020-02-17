@@ -62,7 +62,5 @@ typedef struct {
   InjectorContext injector_ctxt;
   int len_molecule_sems;
   sem_t all_procs_done_sem;
-  // TODO:(nhendy) this is temporary to get the desired printing behavior.
-  lock_t print_lock;
 } SharedReactionsContext;
 #endif

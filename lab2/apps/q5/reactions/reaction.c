@@ -3,6 +3,20 @@
 #include "usertraps.h"
 #include "misc.h"
 
+void printReactionMessage(const int reaction_idx) {
+  switch (reaction_idx) {
+    case 0:
+      Printf("2H2O = 2H2 + 1O2 reacted, PID:%d\n", getpid());
+      break;
+    case 1:
+      Printf("1SO4 = 1SO2 + 1O2 reacted, PID:%d\n", getpid());
+      break;
+    case 2:
+      Printf("1H2 + 1O2 + 1SO2 = 1H2SO4 reacted, PID:%d\n", getpid());
+      break;
+  }
+}
+
 void main(int argc, char** argv) {
   SharedReactionsContext* shared_ctxt;
   Reaction* reactions;
@@ -46,10 +60,7 @@ void main(int argc, char** argv) {
         semSignalOrDie(sem);
       }
     }
-    GUARD_EXPRESSIONS(
-        shared_ctxt->print_lock,
-        printString(reactions[reaction_idx].reaction_string),
-        Printf("Reaction %d reacted. PID: %d\n", reaction_idx, getpid()));
+    printReactionMessage(reaction_idx);
   }
   semSignalOrDie(shared_ctxt->all_procs_done_sem);
 }

@@ -23,6 +23,23 @@ int computeNumberOfReactionThree(int num_h2o, int num_so4) {
   return min_num_occurrences;
 }
 
+void printRemainingMolecules(const int num_h2o, const int num_so4,
+                             const int num_reaction_one,
+                             const int num_reaction_two,
+                             const int num_reaction_three) {
+  int remaining_h2o = num_h2o - 2 * num_reaction_one;
+  int remaining_h2 = 2 * num_reaction_one - num_reaction_three;
+  int remaining_o2 = num_reaction_one + num_reaction_two - num_reaction_three;
+  int remaining_so2 = num_reaction_two - num_reaction_three;
+  int remaining_h2so4 = num_reaction_three;
+
+  Printf(
+      "%d H2O's left over. %d H2's left over. %d O2's left over. %d SO2's left "
+      "over.",
+      remaining_h2o, remaining_h2, remaining_o2, remaining_so2);
+  Printf("%d H2SO4's created\n", remaining_h2so4);
+}
+
 void main(int argc, char** argv) {
   Reaction* reactions;
   SharedReactionsContext* shared_ctxt;
@@ -87,12 +104,6 @@ void main(int argc, char** argv) {
   reactions[2].num_occurrences = computeNumberOfReactionThree(
       dstrtol(argv[1], NULL, 10), dstrtol(argv[2], NULL, 10));
 
-  // TODO: (nhendy) temporary
-  if ((shared_ctxt->print_lock = lock_create()) == SYNC_FAIL) {
-    Printf("Failed to  make a lock exiting...\n");
-    Exit();
-  }
-
   total_num_processes =
       shared_ctxt->injector_ctxt.num_molecules + kNumReactions;
   if ((shared_ctxt->all_procs_done_sem =
@@ -115,7 +126,8 @@ void main(int argc, char** argv) {
                    reactions_handle_str, reaction_idx_str, NULL);
   }
   semWaitOrDie(shared_ctxt->all_procs_done_sem);
-  Printf(
-      "1 H2O's left over. 0 H2's left over. 2 O2's left over. 1 SO2's left "
-      "over. 2 H2SO4's created.\n");
+  printRemainingMolecules(
+      dstrtol(argv[1], NULL, 10), dstrtol(argv[2], NULL, 10),
+      reactions[0].num_occurrences, reactions[1].num_occurrences,
+      reactions[2].num_occurrences);
 }

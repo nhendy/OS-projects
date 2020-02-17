@@ -4,6 +4,17 @@
 #include "misc.h"
 #include "lab2-api.h"
 
+void printInjectionMessage(const int molecule_idx) {
+  switch (molecule_idx) {
+    case 0:
+      Printf("H2O injected into Radeon atmosphere, PID: %d\n", getpid());
+      break;
+    case 1:
+      Printf("SO4 injected into Radeon atmosphere, PID: %d\n", getpid());
+      break;
+  }
+}
+
 void main(int argc, char** argv) {
   SharedReactionsContext* shared_ctxt;
   uint32 shared_ctxt_handle;
@@ -27,9 +38,7 @@ void main(int argc, char** argv) {
   for (j = 0; j < molecule_amount_pr.amount_needed; ++j) {
     sem = lookupSemaphoreByMolecule(shared_ctxt, molecule_amount_pr.molecule);
     semSignalOrDie(sem);
-    GUARD_EXPRESSIONS(
-        shared_ctxt->print_lock, printString(molecule_amount_pr.molecule.name),
-        Printf(" injected into Radeon atmosphere, PID: %d\n", getpid()));
+    printInjectionMessage(molecule_to_inject_idx);
   }
   semSignalOrDie(shared_ctxt->all_procs_done_sem);
 }
