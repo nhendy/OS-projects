@@ -20,16 +20,4 @@ void semWaitOrDie(sem_t sem);
 void condSignalOrDie(cond_t cond);
 // Same as above for waiting a cond.
 void condWaitOrDie(cond_t cond);
-// TODO: (nhendy) looks like gcc-dlx doesn't support variadic macros.
-#define GUARD_EXPRESSIONS_CONS_PROD_CTXT(sem_to_wait, sem_to_signal, mu, \
-                                         expr1, expr2)                   \
-  do {                                                                   \
-    semWaitOrDie(sem_to_wait);                                           \
-    lockAcquireOrDie(mu);                                                \
-    expr1;                                                               \
-    expr2;                                                               \
-    lockReleaseOrDie(mu);                                                \
-    semSignalOrDie(sem_to_signal);                                       \
-  } while (0)
-
 #endif
