@@ -1,11 +1,10 @@
-#include "lab2-api.h"
-#include "usertraps.h"
-#include "misc.h"
 #include "circular_buffer.h"
+#include "lab2-api.h"
+#include "misc.h"
+#include "usertraps.h"
 #include "utils.h"
 
 void main(int argc, char *argv[]) {
-
   CircularBuffer *circ_buff_ptr;
   uint32 h_mem;
 
@@ -39,8 +38,8 @@ void main(int argc, char *argv[]) {
     while (circ_buff_ptr->read_index == circ_buff_ptr->write_index) {
       condWaitOrDie(full);
     }
-    Printf("%c removed from buffer, pid: %d\n",
-           circ_buff_ptr->buffer[circ_buff_ptr->read_index], getpid());
+    Printf("Consumer %d removed %c\n", getpid(),
+           circ_buff_ptr->buffer[circ_buff_ptr->read_index]);
     circ_buff_ptr->read_index =
         (circ_buff_ptr->read_index + 1) % BUFFER_MAX_SIZE;
     condSignalOrDie(empty);
