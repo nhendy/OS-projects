@@ -7,7 +7,7 @@ one of the unused semaphores in `sems` array and initializing its waiting queue.
 4- The sem_signal and the sem_wait are syscalls. sem_signal first checks if there is a process to wakeup.
 It then finds the pointer address of the queue for the semaphore. Then finds the process control block for
 the queue and gets the PID. The ProcessWakeup wakes up the the process obtained from the PID and puts into the process queue.
-sem_wait checks if the semaphores count value is less then zero, indicating a number of process waiting.
+sem_wait checks if the semaphores count value is less then zero, indicating a number of process waiting if it's less than or equal to zero it puts the calling process on the waiting queue and puts the process to sleep and decrements semaphore count, if not then it decrements the semaphore count only .
 After error checking for memory allocation and succesful insertion into queue. Then the ProcessSleep puts it in the waiting queue.
 5- The handle in DLXOS is an int aliased to the type sem_t, it represents the index
 of the semaphore in the array of available semaphores in the kernel. Functions of the
