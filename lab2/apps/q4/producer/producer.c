@@ -1,10 +1,9 @@
-#include "lab2-api.h"
-#include "usertraps.h"
-#include "misc.h"
 #include "circular_buffer.h"
+#include "lab2-api.h"
+#include "misc.h"
+#include "usertraps.h"
 
 void main(int argc, char *argv[]) {
-
   CircularBuffer *circ_buff_ptr;
   uint32 h_mem;
 
@@ -43,7 +42,7 @@ void main(int argc, char *argv[]) {
     circ_buff_ptr->buffer[circ_buff_ptr->write_index] = HELLO_WORLD_STR[i];
     circ_buff_ptr->write_index =
         (circ_buff_ptr->write_index + 1) % BUFFER_MAX_SIZE;
-    Printf("%c added from buffer, pid: %d\n", HELLO_WORLD_STR[i], getpid());
+    Printf("Producer %d inserted %c\n", getpid(), HELLO_WORLD_STR[i]);
     condSignalOrDie(full);
     lockReleaseOrDie(buffer_lock);
   }
