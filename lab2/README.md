@@ -15,18 +15,18 @@ is needed and where it will be compiled (right not it'll be compiled in the work
 ```bash
 cd lab2/os && make clean && make
 cd -
-cd lab2/apps/q2 && make clean && make
+cd lab2/apps/q2 && make clean && make run
 ```
 ## Question 4 instructions:
 ```bash
 cd lab2/os && make clean && make
 cd -
-cd lab2/apps/q4 && make clean && make
+cd lab2/apps/q4 && make clean && make run
 ```
 
 ## Question 5 instructions:
 ```bash
 cd lab2/os && make clean && make
 cd -
-cd lab2/apps/q5 && make clean && make
+cd lab2/apps/q5 && make clean && make run
 ```
