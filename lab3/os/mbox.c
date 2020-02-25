@@ -5,11 +5,20 @@
 #include "queue.h"
 #include "mbox.h"
 
+#define GUARDED_SCOPE(mu) \
+  for (LockHandleAcquire(mu); false; LockHandleRelease(mu))
+
 #define UNINTERRUPTIBLE_SCOPE(interrupts) \
   interrupts = DisableIntrs();            \
   for (; false; RestoreIntrs(interrupts))
 
 #define LEN_OF_ARRAY(array) sizeof(array) / sizeof(array[0])
+
+void bcopy(char* src, char* dst, int count) {
+  while (count-- > 0) {
+    *(dst++) = *(src++);
+  }
+}
 
 int SanityCheckHandle(mbox_t handle) {
   if (handle < 0) return false;
@@ -36,6 +45,8 @@ void MboxModuleInit() {
   for (i = 0; i < LEN_OF_ARRAY(mboxes); ++i) {
     mboxes[i].inuse = 0;
     mboxes[i].mbox_lock = LockCreate();
+    mboxes[i].mbox_producers_sem = SemCreate(MBOX_MAX_BUFFERS_PER_MBOX);
+    mboxes[i].mbox_consumers_sem = SemCreate(0);
   }
   for (i = 0; i < LEN_OF_ARRAY(mboxes_messages); ++i) {
     mboxes_messages[i].inuse = 0;
@@ -53,23 +64,16 @@ void MboxModuleInit() {
 //
 //-------------------------------------------------------
 mbox_t MboxCreate() {
-  mboxt_t;
+  mboxt_t mbox_handle;
   uint32 interrupts;
   UNINTERRUPTIBLE_SCOPE(interrupts) {
-    for (mbox_t = 0; mbox_t < MBOX_NUM_MBOXES; ++mboxt_t) {
-      // Acquire lock before inspecting `inuse` flag
-      // LockHandleAcquire(mboxes[mbox_t].mbox_lock);
-      if (mboxes[mbox_t].inuse == 0) break;
-      // if it's inuse release lock. If not the lock
-      // will stay acquired by the current process and release
-      // after MboxInit
-      // LockHandleRelease(mboxes[mboxes_t].mbox_lock);
+    for (mbox_handle = 0; mbox_handle < mbox_num_mboxes; ++mboxt_t) {
+      if (mboxes[mbox_handle].inuse == 0) break;
     }
-    if (mbox_t == MBOX_NUM_MBOXES) return MBOX_FAIL;
-    if (MboxInit(&mboxes[mbox_t]) == MBOX_FAIL) return MBOX_FAIL;
-    // LockHandlRelease(mboxes[mboxes_t].mbox_lock);
   }
-  return mbox_t;
+  if (mbox_handle == MBOX_NUM_MBOXES) return MBOX_FAIL;
+  if (MboxInit(&mboxes[mbox_handle]) == MBOX_FAIL) return MBOX_FAIL;
+  return mbox_handle;
 }
 
 int MboxInit(Mbox* mbox) {
@@ -102,16 +106,11 @@ int MboxInit(Mbox* mbox) {
 // Returns MBOX_FAIL on failure.
 // Returns MBOX_SUCCESS on success.
 //
-// TODO: (nhendy) clarify what does it mean to not change inuse? semantics of
-// inuse?
 //-------------------------------------------------------
 int MboxOpenInternal(Mbox* mbox) {
   Link* l;
   uint32 interrupts;
   UNINTERRUPTIBLE_SCOPE(interrupts) {
-    if (mbox->inuse == 0) {
-      return MBOX_FAIL;
-    }
     if ((l = AQueueAllocLink((void*)currentPCB)) == NULL) {
       printf(
           "FATAL ERROR: could not allocate link for pids queue in "
@@ -187,8 +186,92 @@ int MboxCloseInternal(Mbox* mbox) {
 // Returns MBOX_SUCCESS on success.
 //
 //-------------------------------------------------------
-int MboxSend(mbox_t handle, int length, void* message) { return MBOX_FAIL; }
+int MboxMessageInit(MboxMessage* mssg, int lenght, void* message) {
+  GUARDED_SCOPE(mssg->mssg_lock) {
+    bcopy(message, mssg->message, length);
+    mssg->length = length;
+  }
+}
 
+int MboxMessageCreate(int length, void* message) {
+  int i;
+  mbox_mssg_t mssg_handle;
+  uint32 interrupts;
+  if (length > MBOX_MAX_MESSAGE_LENGTH) return MBOX_FAIL;
+  UNINTERRUPTIBLE_SCOPE(interrupts) {
+    for (mssg_handle = 0; mssg_handle < LEN_OF_ARRAY(mboxes_messages);
+         ++mssg_handle) {
+      if (mboxes_messages[i].inuse == 0) break;
+    }
+  }
+  if (mssg_handle == LEN_OF_ARRAY(mboxes_messages)) return MBOX_FAIL;
+  if (MboxMessageInit(&mboxes_messages[mssg_handle], length, message) ==
+      MBOX_FAIL)
+    return MBOX_FAIL;
+}
+
+int MboxSendInternal(Mbox* mbox, MboxMessage* mssg) {
+  Link* l;
+  uint32 interrupts;
+  // This needs to be mutually exclusive
+  // because AQueueAlloc allocates a link
+  // from a global freeLinks array which
+  // is no thread-aware. It's not locked
+  // because it's protecting a system level
+  // non-mbox related resouce, rather it's
+  // protected from interrupts.
+  UNINTERRUPTIBLE_SCOPE(interrupts) {
+    if ((l = AQueueAllocLink((void*)mssg)) == NULL) {
+      printf(
+          "FATAL ERROR: could not allocate link for mssg queue in "
+          "MboxSendInternal!\n");
+      exitsim();
+    }
+  }
+  // SemWait here in order to
+  // prevent allocating more mssgs than the maximum
+  // allowable mssgs in a mbox.
+  SemHandleWait(mbox->mbox_producers_sem);
+  // Guard write/read access to messages queue
+  // since it's mbox shared resource.
+  GUARDED_SCOPE(mbox->mbox_lock) {
+    if (AQueueInsertLast(&mbox->messages, l) != QUEUE_SUCCESS) {
+      printf(
+          "FATAL ERROR: could not insert new link into pids  queue "
+          "in MboxOpen!\n");
+      exitsim();
+    }
+  }
+  SemHandleSignal(mbox->mbox_consumers_sem);
+}
+int MboxOpenedByPid(Mbox* mbox) {
+  Link* l;
+  PCB* pcb;
+  uint32 interrupts;
+  UNINTERRUPTIBLE_SCOPE(interrupts) {
+    l = AQueueFirst(&mbox->pids);
+    while (l) {
+      pcb = (PCB*)AQueueObject(l);
+      if (GetCurrentPid() == GetPidFromAddress(pcb)) {
+        // We need to restor ints manually
+        // because this is exiting the scopre
+        // prematurely.
+        RestoreIntrs(interrupts);
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+int MboxSend(mbox_t handle, int length, void* message) {
+  mbox_message_t mssg_handle;
+  if (!SanityCheckHandle(handle)) return MBOX_FAIL;
+  if (!MboxOpenedByPid(&mboxes[handle])) return MBOX_FAIL;
+  if ((mssg_handle = MboxMessageCreate(length, message)) == MBOX_FAIL)
+    return MBOX_FAIL;
+  return MboxSendInternal(&mboxes[handle], &mboxes_messages[mssg_handle]);
+}
 //-------------------------------------------------------
 //
 // int MboxRecv(mbox_t handle, int maxlength, void* message);

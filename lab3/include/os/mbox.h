@@ -1,3 +1,4 @@
+#ifndef __MBOX_OS__
 #define __MBOX_OS__
 
 #define MBOX_NUM_MBOXES 16  // Maximum number of mailboxes allowed in the system
@@ -15,7 +16,10 @@
 //--------------------------------------------
 
 typedef struct mbox_message {
-  char message[MBOX_MAX_MESSAGE_LENGTH];
+  // TODO: (nhendy) by max is does it mean it should be
+  // <= or < ?
+  void message[MBOX_MAX_MESSAGE_LENGTH + 1];
+  int length;
   uint32 inuse;
   lock_t mssg_lock;
 } MboxMessage;
@@ -25,12 +29,15 @@ typedef struct mbox {
   uint32 inuse;
   Queue pids;
   lock_t mbox_lock;
+  sem_t mbox_producers_sem;
+  sem_t mbox_consumers_sem;
 } Mbox;
 
 static Mbox mboxes[MBOX_NUM_MBOXES];
 static MboxMessage mboxes_messages[MBOX_NUM_BUFFERS];
 
-typedef int mbox_t;  // This is the "type" of mailbox handles
+typedef int mbox_t;       // This is the "type" of mailbox handles
+typedef int mbox_mssg_t;  // This is the "type" of mailbox message handles
 
 //-------------------------------------------
 // Prototypes for Mbox functions you have to write
