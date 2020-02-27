@@ -14,11 +14,19 @@
 
 #define LEN_OF_ARRAY(array) sizeof(array) / sizeof(array[0])
 
+#define RETURN_FAIL_IF_FALSE(val) \
+  if (!val) return MBOX_FAIL
+
+#define RETURN_FAIL_IF_NULL(ptr) \
+  if (ptr == NULL) return MBOX_FAIL
+
 void bcopy(char* src, char* dst, int count) {
   while (count-- > 0) {
     *(dst++) = *(src++);
   }
 }
+
+int min(int a, int b) { return ((a < b) ? a : b); }
 
 int SanityCheckHandle(mbox_t handle) {
   if (handle < 0) return false;
@@ -146,14 +154,31 @@ int MboxOpen(mbox_t handle) {
 // Returns MBOX_SUCCESS on success.
 //
 //-------------------------------------------------------
-int MboxCloseInternal(Mbox* mbox) {
+int MboxCloseInternal(Mbox* mbox, int pid) {
   uint32 interrupts;
   Link* l;
   PCB* pcb;
   UNINTERRUPTIBLE_SCOPE(interrupts) {
-    if (AQueueEmpty(&mbox->pids)) return MBOX_SUCCESS;
+    // TODO:(nhendy) look up by pid
+    if (AQueueEmpty(&mbox->pids)) {
+      // Need to restore interrupts manually
+      // because of premature exit.
+      RestoreIntrs(interrupts);
+      return MBOX_SUCCESS;
+    }
     l = AQueueFirst(&mbox->pids);
-    pcb = (PCB*)AQueueObject(l);
+    while (l) {
+      pcb = (PCB*)AQueueObject(l);
+      if (GetPidFromAddress(pcb) == pid) break;
+    }
+    // If we reach the end node that means the
+    // pid doesn't exist.
+    if (l == NULL) {
+      // Need to restore interrupts manually
+      // because of premature exit.
+      RestoreIntrs(interrupts);
+      return MBOX_FAIL;
+    }
 
     if (AQueueRemove(&l) != QUEUE_SUCCESS) {
       printf(
@@ -168,7 +193,7 @@ int MboxCloseInternal(Mbox* mbox) {
 
 int MboxClose(mbox_t handle) {
   if (!SanityCheckHandle(handle)) return MBOX_FAIL;
-  return MboxCloseInternal(&mboxes[handle]);
+  return MboxCloseInternal(&mboxes[handle], GetCurrentPid());
 }
 
 //-------------------------------------------------------
@@ -246,6 +271,7 @@ int MboxSendInternal(Mbox* mbox, MboxMessage* mssg) {
     }
   }
   SemHandleSignal(mbox->mbox_consumers_sem);
+  return MBOX_SUCCESS;
 }
 int MboxOpenedByPid(Mbox* mbox) {
   Link* l;
@@ -256,7 +282,7 @@ int MboxOpenedByPid(Mbox* mbox) {
     while (l) {
       pcb = (PCB*)AQueueObject(l);
       if (GetCurrentPid() == GetPidFromAddress(pcb)) {
-        // We need to restor ints manually
+        // We need to restore interrupts manually
         // because this is exiting the scopre
         // prematurely.
         RestoreIntrs(interrupts);
@@ -291,7 +317,54 @@ int MboxSend(mbox_t handle, int length, void* message) {
 // Returns number of bytes written into message on success.
 //
 //-------------------------------------------------------
-int MboxRecv(mbox_t handle, int maxlength, void* message) { return MBOX_FAIL; }
+int SanityCheckRequestedLength(MboxMessage* mssg, int maxlength) {
+  int result = true;
+  GUARDED_SCOPE(mssg->mssg_lock) { result = mssg->length <= maxlength; }
+  return result;
+}
+
+int ReadOutMessageData(MboxMessage* mssg, int maxlength, void* message) {
+  GUARDED_SCOPE(mssg->mssg_lock) {
+    bcopy(mssg->message, message, min(maxlength, mssg->length));
+    mssg->inuse = 0;
+    mssg->length = 0;
+  }
+  return MBOX_SUCCESS;
+}
+
+int MboxRecvInternal(Mbox* mbox, int maxlength, void* message) {
+  Link* l;
+  uint32 interrupts;
+  MboxMessage* mssg;
+  RETURN_FAIL_IF_NULL(mssg);
+  GUARDED_SCOPE(mbox->mbox_lock) {
+    l = AQueueFirst(&mbox->messages);
+    mssg = (MboxMessage*)AQueueObject(l);
+  }
+
+  RETURN_FAIL_IF_FALSE(SanityCheckRequestedLength(mssg, maxlength));
+
+  SemHandleWait(mbox->mbox_consumers_sem);
+  GUARDED_SCOPE(mbox->mbox_lock) {
+    UNINTERRUPTIBLE_SCOPE(interrupts) {
+      if (AQueueRemove(&l) != QUEUE_SUCCESS) {
+        printf(
+            "FATAL ERROR: could not remove link from messages queue in "
+            "MboxRecvInternal!\n");
+        exitsim();
+      }
+    }
+  }
+  SemHandleSignal(mbox->mbox_producers_sem);
+
+  return ReadOutMessageData(mssg, maxlength, message);
+}
+
+int MboxRecv(mbox_t handle, int maxlength, void* message) {
+  if (!SanityCheckHandle(handle)) return MBOX_FAIL;
+  if (!MboxOpenedByPid(&mboxes[handle])) return MBOX_FAIL;
+  return MboxRecvInternal(&mboxes[handle], maxlength, message);
+}
 
 //--------------------------------------------------------------------------------
 //
@@ -306,4 +379,14 @@ int MboxRecv(mbox_t handle, int maxlength, void* message) { return MBOX_FAIL; }
 // Returns MBOX_SUCCESS on success.
 //
 //--------------------------------------------------------------------------------
-int MboxCloseAllByPid(int pid) { return MBOX_FAIL; }
+int MboxCloseAllByPid(int pid) {
+  mbox_t handle;
+  for (handle = 0; handle < LEN_OF_ARRAY(mboxes); ++handle) {
+    if (MboxCloseInternal(&mboxes[handle], pid) == MBOX_SUCCESS) {
+      dbprintf('y', "Successfully removed PID %d from Mbox %d", pid, handle);
+    } else {
+      dbprintf('y', "PID %d not in Mbox %d", pid, handle);
+    }
+  }
+  return MBOX_SUCCESS;
+}

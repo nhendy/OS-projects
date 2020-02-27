@@ -151,6 +151,11 @@ void ProcessFreeResources(PCB *pcb) {
   }
   // Free the page allocated for the system stack
   MemoryFreePage(pcb->sysStackArea / MEMORY_PAGE_SIZE);
+  if (!MboxCloseAllByPid(GetPidFromAddress(pcb))) {
+    printf(
+        "FATAL ERROR: could not close mboxes in "
+        "ProcessFreeResources!\n");
+  }
   ProcessSetStatus(pcb, PROCESS_STATUS_FREE);
   dbprintf('p', "ProcessFreeResources: function complete\n");
 }
