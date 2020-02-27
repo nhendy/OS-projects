@@ -63,19 +63,6 @@ void MboxModuleInit() {
 // Returns MBOX_FAIL on error.
 //
 //-------------------------------------------------------
-mbox_t MboxCreate() {
-  mboxt_t mbox_handle;
-  uint32 interrupts;
-  UNINTERRUPTIBLE_SCOPE(interrupts) {
-    for (mbox_handle = 0; mbox_handle < mbox_num_mboxes; ++mboxt_t) {
-      if (mboxes[mbox_handle].inuse == 0) break;
-    }
-  }
-  if (mbox_handle == MBOX_NUM_MBOXES) return MBOX_FAIL;
-  if (MboxInit(&mboxes[mbox_handle]) == MBOX_FAIL) return MBOX_FAIL;
-  return mbox_handle;
-}
-
 int MboxInit(Mbox* mbox) {
   if (!mbox) return MBOX_FAIL;
   if (AQueueInit(&mbox->messages) != QUEUE_SUCCESS) {
@@ -93,6 +80,20 @@ int MboxInit(Mbox* mbox) {
   mbox->inuse = 1;
   return MBOX_SUCCESS;
 }
+
+mbox_t MboxCreate() {
+  mbox_t mbox_handle;
+  uint32 interrupts;
+  UNINTERRUPTIBLE_SCOPE(interrupts) {
+    for (mbox_handle = 0; mbox_handle < MBOX_NUM_MBOXES; ++mbox_handle) {
+      if (mboxes[mbox_handle].inuse == 0) break;
+    }
+  }
+  if (mbox_handle == MBOX_NUM_MBOXES) return MBOX_FAIL;
+  if (MboxInit(&mboxes[mbox_handle]) == MBOX_FAIL) return MBOX_FAIL;
+  return mbox_handle;
+}
+
 //-------------------------------------------------------
 //
 // void MboxOpen(mbox_t);
@@ -145,11 +146,6 @@ int MboxOpen(mbox_t handle) {
 // Returns MBOX_SUCCESS on success.
 //
 //-------------------------------------------------------
-int MboxClose(mbox_t handle) {
-  if (!SanityCheckHandle(handle)) return MBOX_FAIL;
-  return MboxCloseInternal(&mboxes[handles]);
-}
-
 int MboxCloseInternal(Mbox* mbox) {
   uint32 interrupts;
   Link* l;
@@ -170,6 +166,11 @@ int MboxCloseInternal(Mbox* mbox) {
   return MBOX_SUCCESS;
 }
 
+int MboxClose(mbox_t handle) {
+  if (!SanityCheckHandle(handle)) return MBOX_FAIL;
+  return MboxCloseInternal(&mboxes[handle]);
+}
+
 //-------------------------------------------------------
 //
 // int MboxSend(mbox_t handle,int length, void* message);
@@ -186,11 +187,12 @@ int MboxCloseInternal(Mbox* mbox) {
 // Returns MBOX_SUCCESS on success.
 //
 //-------------------------------------------------------
-int MboxMessageInit(MboxMessage* mssg, int lenght, void* message) {
+int MboxMessageInit(MboxMessage* mssg, int length, void* message) {
   GUARDED_SCOPE(mssg->mssg_lock) {
     bcopy(message, mssg->message, length);
     mssg->length = length;
   }
+  return MBOX_SUCCESS;
 }
 
 int MboxMessageCreate(int length, void* message) {
@@ -208,6 +210,7 @@ int MboxMessageCreate(int length, void* message) {
   if (MboxMessageInit(&mboxes_messages[mssg_handle], length, message) ==
       MBOX_FAIL)
     return MBOX_FAIL;
+  return MBOX_SUCCESS;
 }
 
 int MboxSendInternal(Mbox* mbox, MboxMessage* mssg) {
@@ -265,7 +268,7 @@ int MboxOpenedByPid(Mbox* mbox) {
 }
 
 int MboxSend(mbox_t handle, int length, void* message) {
-  mbox_message_t mssg_handle;
+  mbox_mssg_t mssg_handle;
   if (!SanityCheckHandle(handle)) return MBOX_FAIL;
   if (!MboxOpenedByPid(&mboxes[handle])) return MBOX_FAIL;
   if ((mssg_handle = MboxMessageCreate(length, message)) == MBOX_FAIL)

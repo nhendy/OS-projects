@@ -1,5 +1,6 @@
 #ifndef __MBOX_OS__
 #define __MBOX_OS__
+#include "synch.h"
 
 #define MBOX_NUM_MBOXES 16  // Maximum number of mailboxes allowed in the system
 #define MBOX_NUM_BUFFERS \
@@ -15,16 +16,14 @@
 // Define your mailbox structures here
 //--------------------------------------------
 
-typedef struct mbox_message {
-  // TODO: (nhendy) by max is does it mean it should be
-  // <= or < ?
-  void message[MBOX_MAX_MESSAGE_LENGTH + 1];
+typedef struct {
+  char message[MBOX_MAX_MESSAGE_LENGTH + 1];
   int length;
   uint32 inuse;
   lock_t mssg_lock;
 } MboxMessage;
 
-typedef struct mbox {
+typedef struct {
   Queue messages;
   uint32 inuse;
   Queue pids;
