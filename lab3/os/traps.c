@@ -477,6 +477,7 @@ static int TrapMboxRecvHandler(uint32 *trapArgs, int sysMode) {
     // Copy message from msg to user space.  Number of bytes is returned by
     // MboxRecv
     if (!sysMode) {
+      dbprintf('y', "Copying over %d chars\n", retval);
       MemoryCopySystemToUser(currentPCB, msg, usermessage, retval);
     } else {
       bcopy(msg, usermessage, retval);
@@ -655,6 +656,7 @@ void dointerrupt(unsigned int cause, unsigned int iar, unsigned int isr,
         ProcessSetResult(currentPCB, ihandle);  // Return 1 or 0
         break;
       case TRAP_MBOX_CREATE:
+        dbprintf('y', "TRAP_MBOX_CREATE!!!\n");
         ihandle = MboxCreate();
         ProcessSetResult(currentPCB, ihandle);  // Return 1 or 0
         break;
