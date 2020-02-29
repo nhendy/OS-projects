@@ -1,13 +1,14 @@
 #ifndef __MBOX_OS__
 #define __MBOX_OS__
 #include "synch.h"
-
-#define MBOX_NUM_MBOXES 16  // Maximum number of mailboxes allowed in the system
-#define MBOX_NUM_BUFFERS \
-  50  // Maximum number of message buffers allowed in the system
-#define MBOX_MAX_BUFFERS_PER_MBOX \
-  10  // Maximum number of buffer slots available to any given mailbox
-#define MBOX_MAX_MESSAGE_LENGTH 100  // Buffer size of 100 for each message
+// Maximum number of mailboxes allowed in the system
+#define MBOX_NUM_MBOXES 16
+// Maximum number of message buffers allowed in the system
+#define MBOX_NUM_BUFFERS 50
+// Maximum number of buffer slots available to any given mailbox
+#define MBOX_MAX_BUFFERS_PER_MBOX 10
+// Buffer size of 100 for each message
+#define MBOX_MAX_MESSAGE_LENGTH 100
 
 #define MBOX_FAIL -1
 #define MBOX_SUCCESS 1

@@ -5,9 +5,6 @@
 #include "queue.h"
 #include "mbox.h"
 
-#define CONCAT(x, y) x##y
-#define CONCAT_HELPER(x, y) CONCAT(x, y)
-
 #define GUARDED_SCOPE(mu, dummy) \
   dummy = true;                  \
   for (LockHandleAcquire(mu); dummy; LockHandleRelease(mu), dummy = false)
@@ -34,7 +31,6 @@ void bcopy(char* src, char* dst, int count) {
 int min(int a, int b) { return ((a < b) ? a : b); }
 
 int SanityCheckHandle(mbox_t handle) {
-  dbprintf('y', "SanityCheckhandle\n");
   if (handle < 0) return false;
   if (handle >= MBOX_NUM_MBOXES) return false;
   if (!mboxes[handle].inuse) return false;
@@ -100,12 +96,9 @@ mbox_t MboxCreate() {
   mbox_t mbox_handle;
   uint32 interrupts;
   int dummy;
-  dbprintf('y', "MboxCreate: Entering\n");
+  dbprintf('y', "MboxCreate: Entering , PID: %d\n", GetCurrentPid());
   UNINTERRUPTIBLE_SCOPE(interrupts, dummy) {
-    dbprintf('y', "In the scope\n");
     for (mbox_handle = 0; mbox_handle < MBOX_NUM_MBOXES; ++mbox_handle) {
-      dbprintf('y', "Mbox %d inuse: %d\n", mbox_handle,
-               mboxes[mbox_handle].inuse)
       if (mboxes[mbox_handle].inuse == 0) {
         dbprintf('y', "Handle %d is available\n", mbox_handle);
         break;
@@ -114,7 +107,8 @@ mbox_t MboxCreate() {
   }
   if (mbox_handle == MBOX_NUM_MBOXES) return MBOX_FAIL;
   if (MboxInit(&mboxes[mbox_handle]) == MBOX_FAIL) return MBOX_FAIL;
-  dbprintf('y', "Returning handle %d from MboxCreate\n", mbox_handle);
+  dbprintf('y', "MboxCreate: Returning handle %d, PID: %d\n", mbox_handle,
+           GetCurrentPid());
   return mbox_handle;
 }
 
@@ -136,7 +130,8 @@ int MboxOpenInternal(Mbox* mbox) {
   Link* l;
   uint32 interrupts;
   int dummy;
-  dbprintf('y', "MboxOpenInternal %d\n", (int)(mbox - mboxes));
+  dbprintf('y', "MboxOpenInternal %d, PID: %d\n", (int)(mbox - mboxes),
+           GetCurrentPid());
   UNINTERRUPTIBLE_SCOPE(interrupts, dummy) {
     if ((l = AQueueAllocLink((void*)currentPCB)) == NULL) {
       printf(
@@ -151,12 +146,12 @@ int MboxOpenInternal(Mbox* mbox) {
       exitsim();
     }
   }
-  dbprintf('y', "Done MboxOpenInternal\n");
+  dbprintf('y', "MboxOpenInternal: Done, PID: %d\n", GetCurrentPid());
   return MBOX_SUCCESS;
 }
 
 int MboxOpen(mbox_t handle) {
-  dbprintf('y', "MboxOpen\n");
+  dbprintf('y', "MboxOpen: Entering, PID: %d\n", GetCurrentPid());
   if (!SanityCheckHandle(handle)) return MBOX_FAIL;
   return MboxOpenInternal(&mboxes[handle]);
 }
@@ -260,11 +255,11 @@ int MboxMessageCreate(int length, void* message) {
   UNINTERRUPTIBLE_SCOPE(interrupts, dummy) {
     for (mssg_handle = 0; mssg_handle < LEN_OF_ARRAY(mboxes_messages);
          ++mssg_handle) {
-      dbprintf('y', "Checking %d, PID: %d\n", mssg_handle, GetCurrentPid());
       if (mboxes_messages[mssg_handle].inuse == 0) break;
     }
   }
-  dbprintf('y', "MboxMessageCreate: Found %d\n", mssg_handle);
+  dbprintf('y', "MboxMessageCreate: Found %d, PID: %d\n", mssg_handle,
+           GetCurrentPid());
   if (mssg_handle == LEN_OF_ARRAY(mboxes_messages)) return MBOX_FAIL;
   if (MboxMessageInit(&mboxes_messages[mssg_handle], length, message) ==
       MBOX_FAIL)
@@ -283,7 +278,7 @@ int MboxSendInternal(Mbox* mbox, MboxMessage* mssg) {
   // because it's protecting a system level
   // non-mbox related resouce, rather it's
   // protected from interrupts.
-  dbprintf('y', "MboxSendInternal: Entering\n");
+  dbprintf('y', "MboxSendInternal: Entering, PID: %d\n", GetCurrentPid());
   UNINTERRUPTIBLE_SCOPE(interrupts, dummy) {
     if ((l = AQueueAllocLink((void*)mssg)) == NULL) {
       printf(
@@ -292,14 +287,15 @@ int MboxSendInternal(Mbox* mbox, MboxMessage* mssg) {
       exitsim();
     }
   }
-  dbprintf('y', "MboxSendInternal: Allocated Link\n");
+  dbprintf('y', "MboxSendInternal: Allocated Link, PID: %d\n", GetCurrentPid());
   // SemWait here in order to
   // prevent allocating more mssgs than the maximum
   // allowable mssgs in a mbox.
   SemHandleWait(mbox->mbox_producers_sem);
   // Guard write/read access to messages queue
   // since it's mbox shared resource.
-  dbprintf('y', "MboxSendInternal: Before inserting in queue\n");
+  dbprintf('y', "MboxSendInternal: Before inserting in queue, PID: %d\n",
+           GetCurrentPid());
   GUARDED_SCOPE(mbox->mbox_lock, dummy) {
     if (AQueueInsertLast(&mbox->messages, l) != QUEUE_SUCCESS) {
       printf(
@@ -318,7 +314,7 @@ int MboxOpenedByPid(Mbox* mbox) {
   PCB* pcb;
   uint32 interrupts;
   int dummy;
-  dbprintf('y', "MboxOpenedByPid: Entering\n");
+  dbprintf('y', "MboxOpenedByPid: Entering, PID: %d\n", GetCurrentPid());
   UNINTERRUPTIBLE_SCOPE(interrupts, dummy) {
     l = AQueueFirst(&mbox->pids);
     while (l) {
@@ -328,24 +324,24 @@ int MboxOpenedByPid(Mbox* mbox) {
         // because this is exiting the scopre
         // prematurely.
         RestoreIntrs(interrupts);
-        dbprintf('y', "MboxOpenedByPid: Exiting\n");
+        dbprintf('y', "MboxOpenedByPid: Exiting, PID: %d\n", GetCurrentPid());
         return true;
       }
       l = AQueueNext(l);
     }
   }
-  dbprintf('y', "MboxOpenedByPid: Exiting\n");
+  dbprintf('y', "MboxOpenedByPid: Exiting, PID: %d\n", GetCurrentPid());
   return false;
 }
 
 int MboxSend(mbox_t handle, int length, void* message) {
   mbox_mssg_t mssg_handle;
-  dbprintf('y', "MboxSend: Entering\n");
+  dbprintf('y', "MboxSend: Entering, PID: %d\n", GetCurrentPid());
   if (!SanityCheckHandle(handle)) return MBOX_FAIL;
   if (!MboxOpenedByPid(&mboxes[handle])) return MBOX_FAIL;
   if ((mssg_handle = MboxMessageCreate(length, message)) == MBOX_FAIL)
     return MBOX_FAIL;
-  dbprintf('y', "Message %d\n", mssg_handle);
+  dbprintf('y', "MboxSend:Message %d, PID: %d\n", mssg_handle, GetCurrentPid());
   return MboxSendInternal(&mboxes[handle], &mboxes_messages[mssg_handle]);
 }
 //-------------------------------------------------------
@@ -373,8 +369,8 @@ int SanityCheckRequestedLength(MboxMessage* mssg, int maxlength) {
 int ReadOutMessageData(MboxMessage* mssg, int maxlength, void* message) {
   int dummy;
   int num_bytes = min(maxlength, mssg->length);
-  dbprintf('y', "ReadOutMessageData: length %d, mssg %d\n", num_bytes,
-           (int)(mssg - mboxes_messages));
+  dbprintf('y', "ReadOutMessageData: length %d, mssg %d, PID: %d\n", num_bytes,
+           (int)(mssg - mboxes_messages), GetCurrentPid());
   GUARDED_SCOPE(mssg->mssg_lock, dummy) {
     bcopy(mssg->message, message, num_bytes);
     mssg->inuse = 0;
@@ -388,22 +384,40 @@ int MboxRecvInternal(Mbox* mbox, int maxlength, void* message) {
   uint32 interrupts;
   MboxMessage* mssg;
   int dummy, dummy2;
-  dbprintf('y', "MboxRecvInternal:Entering\n");
+  dbprintf('y', "MboxRecvInternal:Entering PID: %d\n", GetCurrentPid());
   RETURN_FAIL_IF_NULL(mssg);
+  // GUARDED_SCOPE(mbox->mbox_lock, dummy) {
+  //   l = AQueueFirst(&mbox->messages);
+  //   mssg = (MboxMessage*)AQueueObject(l);
+  // }
+  // RETURN_FAIL_IF_FALSE(SanityCheckRequestedLength(mssg, maxlength));
+
+  dbprintf('y', "MboxRecvInternal: Receiving message %s, PID: %d\n",
+           mssg->message, GetCurrentPid());
+  SemHandleWait(mbox->mbox_consumers_sem);
   GUARDED_SCOPE(mbox->mbox_lock, dummy) {
     l = AQueueFirst(&mbox->messages);
     mssg = (MboxMessage*)AQueueObject(l);
-  }
-  dbprintf('y', "Receiving message %s\n", mssg->message);
-  RETURN_FAIL_IF_FALSE(SanityCheckRequestedLength(mssg, maxlength));
-
-  SemHandleWait(mbox->mbox_consumers_sem);
-  GUARDED_SCOPE(mbox->mbox_lock, dummy) {
+    // This is a weird case when you are guaranteed
+    // that a consumer may consume something but
+    // due to the invalidity that can only be inferred
+    // when an item is present in the queue the consumer
+    // doesn't end up consuming anything and thus resignals
+    // the consumer semaphore.
+    if (!SanityCheckRequestedLength(mssg, maxlength)) {
+      SemHandleSignal(mbox->mbox_consumers_sem);
+      // Unfortunately need to release the lock
+      // manually because the `GUARDED_SCOPE` is being
+      // exitted prematurely
+      LockHandleRelease(mbox->mbox_lock);
+      return MBOX_FAIL;
+    }
     UNINTERRUPTIBLE_SCOPE(interrupts, dummy2) {
       if (AQueueRemove(&l) != QUEUE_SUCCESS) {
         printf(
             "FATAL ERROR: could not remove link from messages queue in "
-            "MboxRecvInternal!\n");
+            "MboxRecvInternal: PID: %d!\n",
+            GetCurrentPid());
         exitsim();
       }
     }
@@ -414,7 +428,7 @@ int MboxRecvInternal(Mbox* mbox, int maxlength, void* message) {
 }
 
 int MboxRecv(mbox_t handle, int maxlength, void* message) {
-  dbprintf('y', "MboxRecv:Entering\n");
+  dbprintf('y', "MboxRecv:Entering , PID: %d\n", GetCurrentPid());
   if (!SanityCheckHandle(handle)) return MBOX_FAIL;
   if (!MboxOpenedByPid(&mboxes[handle])) return MBOX_FAIL;
   return MboxRecvInternal(&mboxes[handle], maxlength, message);
@@ -436,9 +450,7 @@ int MboxRecv(mbox_t handle, int maxlength, void* message) {
 int MboxCloseAllByPid(int pid) {
   mbox_t handle;
   for (handle = 0; handle < LEN_OF_ARRAY(mboxes); ++handle) {
-    if (MboxCloseInternal(&mboxes[handle], pid) == MBOX_SUCCESS) {
-      dbprintf('y', "Successfully removed PID %d from Mbox %d\n", pid, handle);
-    } else {
+    if (MboxCloseInternal(&mboxes[handle], pid) != MBOX_SUCCESS) {
       dbprintf('y', "PID %d not in Mbox %d\n", pid, handle);
     }
   }
