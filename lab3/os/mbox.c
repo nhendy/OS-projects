@@ -37,6 +37,30 @@ int SanityCheckHandle(mbox_t handle) {
   return true;
 }
 
+int MboxOpenedByPid(Mbox* mbox) {
+  Link* l;
+  PCB* pcb;
+  uint32 interrupts;
+  int dummy;
+  dbprintf('y', "MboxOpenedByPid: Entering, PID: %d\n", GetCurrentPid());
+  UNINTERRUPTIBLE_SCOPE(interrupts, dummy) {
+    l = AQueueFirst(&mbox->pids);
+    while (l) {
+      pcb = (PCB*)AQueueObject(l);
+      if (GetCurrentPid() == GetPidFromAddress(pcb)) {
+        // We need to restore interrupts manually
+        // because this is exiting the scopre
+        // prematurely.
+        RestoreIntrs(interrupts);
+        dbprintf('y', "MboxOpenedByPid: Exiting, PID: %d\n", GetCurrentPid());
+        return true;
+      }
+      l = AQueueNext(l);
+    }
+  }
+  dbprintf('y', "MboxOpenedByPid: Exiting, PID: %d\n", GetCurrentPid());
+  return false;
+}
 //-------------------------------------------------------
 //
 // void MboxModuleInit();
@@ -72,7 +96,7 @@ void MboxModuleInit() {
 //
 //-------------------------------------------------------
 int MboxInit(Mbox* mbox) {
-  if (!mbox) return MBOX_FAIL;
+  RETURN_FAIL_IF_NULL(mbox);
   if (AQueueInit(&mbox->messages) != QUEUE_SUCCESS) {
     printf(
         "FATAL ERROR: could not initialize mbox messages queue in "
@@ -98,14 +122,14 @@ mbox_t MboxCreate() {
   int dummy;
   dbprintf('y', "MboxCreate: Entering , PID: %d\n", GetCurrentPid());
   UNINTERRUPTIBLE_SCOPE(interrupts, dummy) {
-    for (mbox_handle = 0; mbox_handle < MBOX_NUM_MBOXES; ++mbox_handle) {
+    for (mbox_handle = 0; mbox_handle < LEN_OF_ARRAY(mboxes); ++mbox_handle) {
       if (mboxes[mbox_handle].inuse == 0) {
         dbprintf('y', "Handle %d is available\n", mbox_handle);
         break;
       }
     }
   }
-  if (mbox_handle == MBOX_NUM_MBOXES) return MBOX_FAIL;
+  if (mbox_handle == LEN_OF_ARRAY(mboxes)) return MBOX_FAIL;
   if (MboxInit(&mboxes[mbox_handle]) == MBOX_FAIL) return MBOX_FAIL;
   dbprintf('y', "MboxCreate: Returning handle %d, PID: %d\n", mbox_handle,
            GetCurrentPid());
@@ -152,7 +176,10 @@ int MboxOpenInternal(Mbox* mbox) {
 
 int MboxOpen(mbox_t handle) {
   dbprintf('y', "MboxOpen: Entering, PID: %d\n", GetCurrentPid());
+  // Fail if the handle is corrupt
   if (!SanityCheckHandle(handle)) return MBOX_FAIL;
+  // Fail if it's already open
+  if (MboxOpenedByPid(&mboxes[handle])) return MBOX_FAIL;
   return MboxOpenInternal(&mboxes[handle]);
 }
 
@@ -175,7 +202,6 @@ int MboxCloseInternal(Mbox* mbox, int pid) {
   PCB* pcb;
   int dummy;
   UNINTERRUPTIBLE_SCOPE(interrupts, dummy) {
-    // TODO:(nhendy) look up by pid
     if (AQueueEmpty(&mbox->pids)) {
       // Need to restore interrupts manually
       // because of premature exit.
@@ -209,7 +235,10 @@ int MboxCloseInternal(Mbox* mbox, int pid) {
 }
 
 int MboxClose(mbox_t handle) {
+  // Fail if the handle is corrupt
   if (!SanityCheckHandle(handle)) return MBOX_FAIL;
+  // Fail if it's already open
+  if (!MboxOpenedByPid(&mboxes[handle])) return MBOX_FAIL;
   return MboxCloseInternal(&mboxes[handle], GetCurrentPid());
 }
 
@@ -231,7 +260,6 @@ int MboxClose(mbox_t handle) {
 //-------------------------------------------------------
 int MboxMessageInit(MboxMessage* mssg, int length, void* message) {
   int dummy;
-  char* temp = (char*)message;
   RETURN_FAIL_IF_NULL(mssg);
   mssg->mssg_lock = LockCreate();
   GUARDED_SCOPE(mssg->mssg_lock, dummy) {
@@ -309,30 +337,6 @@ int MboxSendInternal(Mbox* mbox, MboxMessage* mssg) {
            (int)(mssg - mboxes_messages), GetCurrentPid());
   return MBOX_SUCCESS;
 }
-int MboxOpenedByPid(Mbox* mbox) {
-  Link* l;
-  PCB* pcb;
-  uint32 interrupts;
-  int dummy;
-  dbprintf('y', "MboxOpenedByPid: Entering, PID: %d\n", GetCurrentPid());
-  UNINTERRUPTIBLE_SCOPE(interrupts, dummy) {
-    l = AQueueFirst(&mbox->pids);
-    while (l) {
-      pcb = (PCB*)AQueueObject(l);
-      if (GetCurrentPid() == GetPidFromAddress(pcb)) {
-        // We need to restore interrupts manually
-        // because this is exiting the scopre
-        // prematurely.
-        RestoreIntrs(interrupts);
-        dbprintf('y', "MboxOpenedByPid: Exiting, PID: %d\n", GetCurrentPid());
-        return true;
-      }
-      l = AQueueNext(l);
-    }
-  }
-  dbprintf('y', "MboxOpenedByPid: Exiting, PID: %d\n", GetCurrentPid());
-  return false;
-}
 
 int MboxSend(mbox_t handle, int length, void* message) {
   mbox_mssg_t mssg_handle;
@@ -369,6 +373,8 @@ int SanityCheckRequestedLength(MboxMessage* mssg, int maxlength) {
 int ReadOutMessageData(MboxMessage* mssg, int maxlength, void* message) {
   int dummy;
   int num_bytes = min(maxlength, mssg->length);
+  RETURN_FAIL_IF_NULL(mssg);
+  RETURN_FAIL_IF_NULL(message);
   dbprintf('y', "ReadOutMessageData: length %d, mssg %d, PID: %d\n", num_bytes,
            (int)(mssg - mboxes_messages), GetCurrentPid());
   GUARDED_SCOPE(mssg->mssg_lock, dummy) {
