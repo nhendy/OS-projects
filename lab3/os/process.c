@@ -151,6 +151,12 @@ void ProcessFreeResources(PCB *pcb) {
   }
   // Free the page allocated for the system stack
   MemoryFreePage(pcb->sysStackArea / MEMORY_PAGE_SIZE);
+  if (!MboxCloseAllByPid(GetPidFromAddress(pcb))) {
+    printf(
+        "FATAL ERROR: could not close mboxes in "
+        "ProcessFreeResources!\n");
+    exitsim();
+  }
   ProcessSetStatus(pcb, PROCESS_STATUS_FREE);
   dbprintf('p', "ProcessFreeResources: function complete\n");
 }
@@ -848,6 +854,8 @@ void main(int argc, char *argv[]) {
   KbdModuleInit();
   dbprintf('i', "After initializing keyboard.\n");
   ClkModuleInit();
+  MboxModuleInit();
+  dbprintf('i', "After initializing mbox module.\n");
   for (i = 0; i < 100; i++) {
     buf[i] = 'a';
   }
