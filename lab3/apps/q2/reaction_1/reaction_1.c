@@ -6,14 +6,15 @@
 void main(int argc, char **argv) {
   mbox_t s2, s;
   sem_t sem;
-  int total_args = 4 char message[sizeof(S2_MSG)];
+  int total_args = 4;
+  char message[sizeof(S2_MSG)];
   if (argc < total_args) {
     LOG("Two few args in Reactions. Exiting...\n");
     Printf("Expected %d, got %d\n", 3, total_args);
   }
-  s2 = dstrtol(argv[1]);
-  s = dstrtol(argv[2]);
-  sem = dstrtol(argv[3]);
+  s2 = dstrtol(argv[1], NULL, 10);
+  s = dstrtol(argv[2], NULL, 10);
+  sem = dstrtol(argv[3], NULL, 10);
 
   if (mbox_recv(s2, sizeof(s2), (char *)message) != MBOX_SUCCESS) {
     LOG("S2 receive failure");
@@ -27,9 +28,5 @@ void main(int argc, char **argv) {
     LOG("S send failure");
     Exit();
   }
-
-  if (semSignalOrDie(sem) != SYNC_SUCCESS) {
-    LOG("Bad semaphore %d in %d", sem, argv[0]);
-    Eixt();
-  }
+  semSignalOrDie(sem);
 }

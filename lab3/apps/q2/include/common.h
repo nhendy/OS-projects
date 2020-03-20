@@ -8,7 +8,7 @@
 #define CO_MSG "CO"
 #define O2_MSG "O2"
 #define C2_MSG "C2"
-#define S04_MSG "SO4"
+#define SO4_MSG "SO4"
 
 // Macros for test truthy/falsey return values
 #define FALSE 0

@@ -14,10 +14,10 @@ void main(int argc, char *argv[]) {
     LOG("Too few args in Reactions. Exiting...\n");
     Printf("Expected %d, got %d\n", 3, total_args);
   }
-  s = dstrtol(argv[1]);
-  o2 = dstrtol(argv[2]);
-  so4 = dstrtol(argv[3]);
-  sem = dstrtol(argv[4]);
+  s = dstrtol(argv[1], NULL, 10);
+  o2 = dstrtol(argv[2], NULL, 10);
+  so4 = dstrtol(argv[3], NULL, 10);
+  sem = dstrtol(argv[4], NULL, 10);
   if (mbox_recv(s, sizeof(s), message_s) != MBOX_SUCCESS) {
     LOG("Bad s receive");
     Exit();
@@ -28,14 +28,9 @@ void main(int argc, char *argv[]) {
       Exit();
     }
   }
-  for (k = 0; k < 2; k++) {
-    if (mbox_send(c2, sizeof(c2), C2_MSG) != MBOX_SUCCESS) {
-      LOG("c2 send failure");
-      Eixt();
-    }
-  }
-  if (semSignalOrDie(sem) != SYNC_SUCCESS) {
-    LOG("Bad semaphore %d in %d", sem, argv[0]);
+  if (mbox_send(so4, sizeof(so4), SO4_MSG) != MBOX_SUCCESS) {
+    LOG("c2 send failure");
     Exit();
   }
+  semSignalOrDie(sem);
 }
