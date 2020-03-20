@@ -61,7 +61,7 @@ void main(int argc, char *argv[]) {
   // process_create with a NULL argument so that the operating system
   // knows how many arguments you are sending.
   for (i = 0; i < numprocs; i++) {
-    process_create(FILENAME_TO_RUN, 0, 0, h_mbox_str, s_procs_completed_str,
+    process_create(FILENAME_TO_RUN, 0, 1, h_mbox_str, s_procs_completed_str,
                    NULL);
     Printf("makeprocs (%d): Process %d created\n", getpid(), i);
   }

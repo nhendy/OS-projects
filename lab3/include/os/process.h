@@ -35,8 +35,9 @@
 typedef void (*VoidFunc)();
 
 typedef struct {
-  uint32 last_timestamp;
-  uint32 total_running_time;
+  uint32 schedule_timestamp;
+  uint32 fork_timestamp;
+  uint32 total_cpu_time;
 } TimeingStats;
 
 // Process control block

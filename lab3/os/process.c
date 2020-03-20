@@ -232,13 +232,19 @@ void ProcessSchedule() {
 
   curr_time = ClkGetCurJiffies();
   pcb = (PCB *)AQueueObject(AQueueFirst(&runQueue));
-  pcb->stats.total_running_time = curr_time - pcb->stats.last_timestamp;
-  pcb->stats.last_timestamp = curr_time;
-  if (pcb->pinfo == 1) {
-
-    printf(PROCESS_CPUSTATS_FORMAT, GetPidFromAddress(pcb),
-           pcb->stats.total_running_time, 0);
+  if (pcb->stats.schedule_timestamp != -1) {
+    pcb->stats.total_cpu_time += curr_time - pcb->stats.schedule_timestamp;
   }
+  /* if (pcb->pinfo == 1) { */
+  printf(PROCESS_CPUSTATS_FORMAT, GetPidFromAddress(pcb),
+         pcb->stats.total_cpu_time, 0);
+  printf(
+      "PID: %d Fork Timestamp %d, delta from fork : %d, Schedule timestamp: "
+      "%d, Current Timestamp : %d\n",
+      GetPidFromAddress(pcb), pcb->stats.fork_timestamp,
+      ClkGetCurJiffies() - pcb->stats.fork_timestamp,
+      pcb->stats.schedule_timestamp, ClkGetCurJiffies());
+  /* } */
 
   AQueueMoveAfter(&runQueue, AQueueLast(&runQueue), AQueueFirst(&runQueue));
 
@@ -248,11 +254,9 @@ void ProcessSchedule() {
   dbprintf('p', "About to switch to PCB 0x%x,flags=0x%x @ 0x%x\n", (int)pcb,
            pcb->flags, (int)(pcb->sysStackPtr[PROCESS_STACK_IAR]));
 
-  if (currentPCB->stats.last_timestamp != -1) {
-    currentPCB->stats.total_running_time =
-        curr_time - currentPCB->stats.last_timestamp;
-  }
-  currentPCB->stats.last_timestamp = curr_time;
+  currentPCB->stats.schedule_timestamp = curr_time;
+  printf("PID %d, schedule timestamp: %d will be scheduled\n",
+         GetPidFromAddress(currentPCB), currentPCB->stats.schedule_timestamp);
 
   // Clean up zombie processes here.  This is done at interrupt time
   // because it can't be done while the process might still be running
@@ -287,7 +291,13 @@ void ProcessSuspend(PCB *suspend) {
   ASSERT(suspend->flags & PROCESS_STATUS_RUNNABLE,
          "Trying to suspend a non-running process!\n");
   ProcessSetStatus(suspend, PROCESS_STATUS_WAITING);
-  suspend->stats.last_timestamp = -1;
+  suspend->stats.total_cpu_time +=
+      ClkGetCurJiffies() - suspend->stats.schedule_timestamp;
+  printf(
+      "Suspending PID: %d, CPU time: %d, Schedule timestamp: %d, Current "
+      "timestamp: %d\n",
+      GetPidFromAddress(suspend), suspend->stats.total_cpu_time,
+      suspend->stats.schedule_timestamp, ClkGetCurJiffies());
 
   if (AQueueRemove(&(suspend->l)) != QUEUE_SUCCESS) {
     printf(
@@ -358,6 +368,7 @@ void ProcessWakeup(PCB *wakeup) {
 //
 //----------------------------------------------------------------------
 void ProcessDestroy(PCB *pcb) {
+  printf("Destroying\n");
   dbprintf('p', "ProcessDestroy (%d): function started\n", GetCurrentPid());
   ProcessSetStatus(pcb, PROCESS_STATUS_ZOMBIE);
   if (AQueueRemove(&(pcb->l)) != QUEUE_SUCCESS) {
@@ -386,7 +397,15 @@ void ProcessDestroy(PCB *pcb) {
 //	calls an exit trap, which will be caught to exit the process.
 //
 //----------------------------------------------------------------------
-static void ProcessExit() { exit(); }
+static void ProcessExit() {
+  currentPCB->stats.total_cpu_time +=
+      ClkGetCurJiffies() - currentPCB->stats.schedule_timestamp;
+  printf(
+      "PID: %d exiting. Schedule timestamp: %d, CPU time: %d, Current "
+      "Timestamp : %d\n",
+      GetCurrentPid(), currentPCB->stats.total_cpu_time, ClkGetCurJiffies());
+  exit();
+}
 
 //----------------------------------------------------------------------
 //
@@ -485,8 +504,11 @@ int ProcessFork(VoidFunc func, uint32 param, int pnice, int pinfo, char *name,
            (int)pcb, pcb->sysStackArea, pcb->pagetable[0],
            pcb->npages * MEMORY_PAGE_SIZE);
   // Assign first timestamp
-  pcb->stats.last_timestamp = -1;
-  pcb->stats.total_running_time = -1;
+  pcb->stats.fork_timestamp = ClkGetCurJiffies();
+  pcb->stats.schedule_timestamp = -1;
+  pcb->stats.total_cpu_time = 0;
+  pcb->pinfo = pinfo;
+  pcb->pnice = pnice;
 
   //----------------------------------------------------------------------
   // This section sets up the stack frame for the process.  This is done
