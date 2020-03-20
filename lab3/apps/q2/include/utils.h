@@ -1,61 +1,11 @@
-#ifndef __UTILS_HEADER_Q5__
-#define __UTILS_HEADER_Q5__
+// #ifndef __UTILS_HEADER_Q2__
+// #define __UTILS_HEADER_Q2__
 #include "common.h"
-// Checks if the character is a digit.
-int isDigit(const char c);
-// Converts a character to an int.
-int charToInt(const char c);
-// Prints a string because DLXOS doesn't support string print formatting.
-void printString(const char* const str);
-// Constructs a string representing a reaction from Reaction object.
-DebugString debugString(const Reaction reaction);
-// Fills a string with length len with '\0' characters. Useful to make sure
-// any string constructed later on is null terminated.
-void memsetString(char* const str, const int len);
-// Same as above but for all fields of a Reaction object.
-void memsetReaction(Reaction* const reaction);
-// Initializes a SharedReactionsContext object. Sets string
-// fields to zero and all sem_t variables to -1 to serve
-// as a sentinel to check whether an entry is being consumed.
-void initCtxt(SharedReactionsContext* const shared_ctxt);
-// Fills `shared_ctxt` object from a list of `reactions` of length `len`
-void fillCtxtFromReactions(SharedReactionsContext* const shared_ctxt,
-                           const Reaction* const reactions, const int len);
-// Constructs a Reaction object by parsing a string.
-// The reaction string should follow the following simple pseudo regular
-// expression.
-// SIDE := (NUM_MOLECULES)(MOLECULE) (+ (NUM_MOLECULES)(MOLECULE))*
-// REACTION := SIDE = SIDE
-// WARNING: if the molecule number is not specified it'll be assumed
-// to be zero.
-Reaction makeReactionFromString(const char* const reaction_str);
-// Simple string hash function that works automagically.
-int hash(const char* str);
-// Lookup molecule based on the above hash in `ctxt` and collision is resolved
-// using open addressing by linearly probing the following entries.
-sem_t lookupSemaphoreByMolecule(const SharedReactionsContext* const ctxt,
-                                const Molecule molecule);
-// Insert the pair in the next available spot in the ctxt based on the hash
-// computer by `hash` of the molecule name.
-void insertInSharedCtxt(SharedMoleculeSemaphorePair pair,
-                        SharedReactionsContext* const ctxt);
-// Signal semaphore or exit process if invalid.
+#include "usertraps.h"
 void semSignalOrDie(sem_t sem);
-// Same as above for waiting a semaphore.
-void semWaitOrDie(sem_t sem);
-// Acquire lock or exit process if invalid.
-void lockAcquireOrDie(lock_t mu);
-// Same as above for releasing a lock.
-void lockReleaseOrDie(lock_t mu);
-#define GUARD_EXPRESSIONS(mu, expr1, expr2) \
-  do {                                      \
-    lockAcquireOrDie(mu);                   \
-    expr1;                                  \
-    expr2;                                  \
-    lockReleaseOrDie(mu);                   \
-  } while (0)
-
+// // Same as above for waiting a semaphore.
+// void semWaitOrDie(sem_t sem);
 #define LOG(msg)              \
   Printf("[%d]: ", __LINE__); \
   Printf(msg);
-#endif
+// #endif
