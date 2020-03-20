@@ -177,6 +177,25 @@ void ProcessSetResult(PCB *pcb, uint32 result) {
   pcb->currentSavedFrame[PROCESS_STACK_IREG + 1] = result;
 }
 
+void ComputeAndPrintTimeStats() {
+  int curr_time;
+  curr_time = ClkGetCurJiffies();
+  if (currentPCB->stats.schedule_timestamp != -1) {
+    currentPCB->stats.total_cpu_time +=
+        curr_time - currentPCB->stats.schedule_timestamp;
+  }
+  /* if (pcb->pinfo == 1) { */
+  printf(PROCESS_CPUSTATS_FORMAT, GetPidFromAddress(currentPCB),
+         currentPCB->stats.total_cpu_time, 0);
+  printf(
+      "PID: %d Fork Timestamp %d, delta from fork : %d, Schedule timestamp: "
+      "%d, Current Timestamp : %d\n",
+      GetPidFromAddress(currentPCB), currentPCB->stats.fork_timestamp,
+      ClkGetCurJiffies() - currentPCB->stats.fork_timestamp,
+      currentPCB->stats.schedule_timestamp, ClkGetCurJiffies());
+  /* } */
+}
+
 //----------------------------------------------------------------------
 //
 //	ProcessSchedule
@@ -202,10 +221,10 @@ void ProcessSchedule() {
   PCB *pcb = NULL;
   int i = 0;
   Link *l = NULL;
-  int curr_time;
 
   dbprintf('p', "Now entering ProcessSchedule (cur=0x%x, %d ready)\n",
            (int)currentPCB, AQueueLength(&runQueue));
+  ComputeAndPrintTimeStats();
   // The OS exits if there's no runnable process.  This is a feature, not a
   // bug.  An easy solution to allowing no runnable "user" processes is to
   // have an "idle" process that's simply an infinite loop.
@@ -230,22 +249,6 @@ void ProcessSchedule() {
   // Move the front of the queue to the end.  The running process was the one in
   // front.
 
-  curr_time = ClkGetCurJiffies();
-  pcb = (PCB *)AQueueObject(AQueueFirst(&runQueue));
-  if (pcb->stats.schedule_timestamp != -1) {
-    pcb->stats.total_cpu_time += curr_time - pcb->stats.schedule_timestamp;
-  }
-  /* if (pcb->pinfo == 1) { */
-  printf(PROCESS_CPUSTATS_FORMAT, GetPidFromAddress(pcb),
-         pcb->stats.total_cpu_time, 0);
-  printf(
-      "PID: %d Fork Timestamp %d, delta from fork : %d, Schedule timestamp: "
-      "%d, Current Timestamp : %d\n",
-      GetPidFromAddress(pcb), pcb->stats.fork_timestamp,
-      ClkGetCurJiffies() - pcb->stats.fork_timestamp,
-      pcb->stats.schedule_timestamp, ClkGetCurJiffies());
-  /* } */
-
   AQueueMoveAfter(&runQueue, AQueueLast(&runQueue), AQueueFirst(&runQueue));
 
   // Now, run the one at the head of the queue.
@@ -254,7 +257,7 @@ void ProcessSchedule() {
   dbprintf('p', "About to switch to PCB 0x%x,flags=0x%x @ 0x%x\n", (int)pcb,
            pcb->flags, (int)(pcb->sysStackPtr[PROCESS_STACK_IAR]));
 
-  currentPCB->stats.schedule_timestamp = curr_time;
+  currentPCB->stats.schedule_timestamp = ClkGetCurJiffies();
   printf("PID %d, schedule timestamp: %d will be scheduled\n",
          GetPidFromAddress(currentPCB), currentPCB->stats.schedule_timestamp);
 
@@ -291,8 +294,6 @@ void ProcessSuspend(PCB *suspend) {
   ASSERT(suspend->flags & PROCESS_STATUS_RUNNABLE,
          "Trying to suspend a non-running process!\n");
   ProcessSetStatus(suspend, PROCESS_STATUS_WAITING);
-  suspend->stats.total_cpu_time +=
-      ClkGetCurJiffies() - suspend->stats.schedule_timestamp;
   printf(
       "Suspending PID: %d, CPU time: %d, Schedule timestamp: %d, Current "
       "timestamp: %d\n",
@@ -397,15 +398,7 @@ void ProcessDestroy(PCB *pcb) {
 //	calls an exit trap, which will be caught to exit the process.
 //
 //----------------------------------------------------------------------
-static void ProcessExit() {
-  currentPCB->stats.total_cpu_time +=
-      ClkGetCurJiffies() - currentPCB->stats.schedule_timestamp;
-  printf(
-      "PID: %d exiting. Schedule timestamp: %d, CPU time: %d, Current "
-      "Timestamp : %d\n",
-      GetCurrentPid(), currentPCB->stats.total_cpu_time, ClkGetCurJiffies());
-  exit();
-}
+static void ProcessExit() { exit(); }
 
 //----------------------------------------------------------------------
 //
@@ -630,6 +623,7 @@ int ProcessFork(VoidFunc func, uint32 param, int pnice, int pinfo, char *name,
     dbprintf('p', "Setting currentPCB=0x%x, stackframe=0x%x\n", (int)pcb,
              (int)(pcb->currentSavedFrame));
     currentPCB = pcb;
+    currentPCB->stats.schedule_timestamp = ClkGetCurJiffies();
   }
 
   dbprintf('p', "Leaving ProcessFork (%s)\n", name);
