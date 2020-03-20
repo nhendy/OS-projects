@@ -68,6 +68,7 @@ void main(int argc, char *argv[]) {
 
   // Send the missile code messages
   for (i = 0; i < numprocs; i++) {
+    mc.really_important_char += i;
     if (mbox_send(h_mbox, sizeof(missile_code), (void *)&mc) == MBOX_FAIL) {
       Printf("Could not send message to mailbox %d in %s (%d)\n", h_mbox,
              argv[0], getpid());

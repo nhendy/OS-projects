@@ -202,6 +202,7 @@ void ProcessSchedule() {
   PCB *pcb = NULL;
   int i = 0;
   Link *l = NULL;
+  int curr_time;
 
   dbprintf('p', "Now entering ProcessSchedule (cur=0x%x, %d ready)\n",
            (int)currentPCB, AQueueLength(&runQueue));
@@ -228,6 +229,14 @@ void ProcessSchedule() {
 
   // Move the front of the queue to the end.  The running process was the one in
   // front.
+
+  curr_time = ClkGetCurJiffies();
+  pcb = (PCB *)AQueueObject(AQueueFirst(&runQueue));
+  pcb->stats.total_running_time = curr_time - pcb->stats.last_timestamp;
+  pcb->stats.last_timestamp = curr_time;
+  printf(PROCESS_CPUSTATS_FORMAT, GetPidFromAddress(pcb),
+         pcb->stats.total_running_time, 0);
+
   AQueueMoveAfter(&runQueue, AQueueLast(&runQueue), AQueueFirst(&runQueue));
 
   // Now, run the one at the head of the queue.
@@ -235,6 +244,12 @@ void ProcessSchedule() {
   currentPCB = pcb;
   dbprintf('p', "About to switch to PCB 0x%x,flags=0x%x @ 0x%x\n", (int)pcb,
            pcb->flags, (int)(pcb->sysStackPtr[PROCESS_STACK_IAR]));
+
+  if (currentPCB->stats.last_timestamp != -1) {
+    currentPCB->stats.total_running_time =
+        curr_time - currentPCB->stats.last_timestamp;
+  }
+  currentPCB->stats.last_timestamp = curr_time;
 
   // Clean up zombie processes here.  This is done at interrupt time
   // because it can't be done while the process might still be running
@@ -269,6 +284,7 @@ void ProcessSuspend(PCB *suspend) {
   ASSERT(suspend->flags & PROCESS_STATUS_RUNNABLE,
          "Trying to suspend a non-running process!\n");
   ProcessSetStatus(suspend, PROCESS_STATUS_WAITING);
+  suspend->stats.last_timestamp = -1;
 
   if (AQueueRemove(&(suspend->l)) != QUEUE_SUCCESS) {
     printf(
@@ -465,6 +481,9 @@ int ProcessFork(VoidFunc func, uint32 param, int pnice, int pinfo, char *name,
   dbprintf('p', "Setting up PCB @ 0x%x (sys stack=0x%x, mem=0x%x, size=0x%x)\n",
            (int)pcb, pcb->sysStackArea, pcb->pagetable[0],
            pcb->npages * MEMORY_PAGE_SIZE);
+  // Assign first timestamp
+  pcb->stats.last_timestamp = -1;
+  pcb->stats.total_running_time = -1;
 
   //----------------------------------------------------------------------
   // This section sets up the stack frame for the process.  This is done
