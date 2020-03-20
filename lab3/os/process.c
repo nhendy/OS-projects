@@ -234,8 +234,11 @@ void ProcessSchedule() {
   pcb = (PCB *)AQueueObject(AQueueFirst(&runQueue));
   pcb->stats.total_running_time = curr_time - pcb->stats.last_timestamp;
   pcb->stats.last_timestamp = curr_time;
-  printf(PROCESS_CPUSTATS_FORMAT, GetPidFromAddress(pcb),
-         pcb->stats.total_running_time, 0);
+  if (pcb->pinfo == 1) {
+
+    printf(PROCESS_CPUSTATS_FORMAT, GetPidFromAddress(pcb),
+           pcb->stats.total_running_time, 0);
+  }
 
   AQueueMoveAfter(&runQueue, AQueueLast(&runQueue), AQueueFirst(&runQueue));
 
