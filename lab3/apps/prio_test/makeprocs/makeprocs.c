@@ -42,7 +42,7 @@ void main(int argc, char *argv[]) {
   // knows how many arguments you are sending.
   for (i = 0; i < numprocs; i++) {
     ditoa(i, program_index_str);
-    process_create(FILENAME_TO_RUN, 10 + i, 0, program_index_str,
+    process_create(FILENAME_TO_RUN, i, 0, program_index_str,
                    s_procs_completed_str, NULL);
     Printf("makeprocs (%d): Process %d created\n", getpid(), i);
   }
