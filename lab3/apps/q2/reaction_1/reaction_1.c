@@ -9,7 +9,7 @@ void main(int argc, char **argv) {
   int total_args = 4;
   char message[sizeof(S2_MSG)];
   if (argc < total_args) {
-    LOG("Two few args in Reactions. Exiting...\n");
+    LOG("Two few args in Reaction 1. Exiting...\n");
     Printf("Expected %d, got %d\n", 3, total_args);
   }
   s2 = dstrtol(argv[1], NULL, 10);
@@ -24,9 +24,11 @@ void main(int argc, char **argv) {
     LOG("S send failure");
     Exit();
   }
+  Printf("S molecule made");
   if (mbox_send(s, sizeof(s), S_MSG) != MBOX_SUCCESS) {
     LOG("S send failure");
     Exit();
   }
+  Printf("S molecule made");
   semSignalOrDie(sem);
 }

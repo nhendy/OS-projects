@@ -11,7 +11,7 @@ void main(int argc, char *argv[]) {
   char message[sizeof(CO_MSG)];
   total_args = 5;
   if (argc < total_args) {
-    LOG("Two few args in Reactions. Exiting...\n");
+    LOG("Two few args in Reaction 2. Exiting...\n");
     Printf("Expected %d, got %d\n", 3, total_args);
   }
   // TODO: ask about "any loops" comment, i have loops but not for reactions"
@@ -31,12 +31,15 @@ void main(int argc, char *argv[]) {
       LOG("o2 send failure");
       Exit();
     }
+    Printf("o2 molecule made");
   }
+
   for (k = 0; k < 2; k++) {
     if (mbox_send(c2, sizeof(c2), C2_MSG) != MBOX_SUCCESS) {
       LOG("c2 send failure");
       Exit();
     }
+    Printf("c2 molecule made");
   }
   semSignalOrDie(sem);
 }

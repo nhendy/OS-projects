@@ -26,7 +26,7 @@ void main(int argc, char *argv[]) {
   num_r3 = (int)(num_s2 * 2) > (int)(num_co / 4) ? (int)(num_co / 4)
                                                  : (int)(num_s2 * 2);
   total_procs = num_s2 + num_co + num_r1 + num_r2 + num_r3;
-  if ((sem = sem_create(-(total_procs) - 1)) != SYNC_FAIL) {
+  if ((sem = sem_create(-(total_procs) - 1)) == SYNC_FAIL) {
     LOG("Bad semphore");
     Exit();
   }
@@ -36,6 +36,7 @@ void main(int argc, char *argv[]) {
   ditoa(o2, o2_str);
   ditoa(c2, c2_str);
   ditoa(so4, so4_str);
+  ditoa(sem, sem_str);
 
   if ((s2 = mbox_create()) == MBOX_FAIL) {
     LOG("Error in creating s2 mbox");
@@ -92,24 +93,21 @@ void main(int argc, char *argv[]) {
     Exit();
   }
 
-  for (i = 0; i < total_procs; i++) {
-    if (i < num_s2) {
-      process_create("injector_1.dlx.obj", 0, 0, sem_str, s2_str);
-    }
-    if (i < num_co) {
-      process_create("injector_2.dlx.obj", 0, 0, sem_str, o2_str);
-    }
-    if (i < num_r1) {
-      process_create("reaction_1.dlx.obj", 0, 0, sem_str, s2_str, s_str);
-    }
-    if (i < num_r2) {
-      process_create("reaction_2.dlx.obj", 0, 0, sem_str, co_str, o2_str,
-                     c2_str);
-    }
-    if (i < num_r3) {
-      process_create("reaction_3.dlx.obj", 0, 0, sem_str, s_str, o2_str,
-                     so4_str);
-    }
+  for (i = 0; i < num_s2; i++) {
+    process_create("injector_1.dlx.obj", 0, 0, sem_str, s2_str);
+  }
+
+  for (i = 0; i < num_co; i++) {
+    process_create("injector_2.dlx.obj", 0, 0, sem_str, o2_str);
+  }
+  for (i = 0; i < num_r1; i++) {
+    process_create("reaction_1.dlx.obj", 0, 0, sem_str, s2_str, s_str);
+  }
+  for (i = 0; i < num_r2; i++) {
+    process_create("reaction_2.dlx.obj", 0, 0, sem_str, co_str, o2_str, c2_str);
+  }
+  for (i = 0; i < num_r3; i++) {
+    process_create("reaction_3.dlx.obj", 0, 0, sem_str, s_str, o2_str, so4_str);
   }
 
   if (sem_wait(sem) == SYNC_FAIL) {

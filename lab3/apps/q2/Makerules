@@ -3,6 +3,7 @@
 # in the Makefiles of the subdirectories of the top-level
 # app directory
 
+HDRS=usertraps.h
 FINALHDRS+=../include/common.h ../include/utils.h
 APPROOT=../..
 INCDIR+=-I../include

@@ -11,7 +11,7 @@ void main(int argc, char *argv[]) {
   char message_O2[sizeof(O2_MSG)];
   total_args = 5;
   if (argc < total_args) {
-    LOG("Too few args in Reactions. Exiting...\n");
+    LOG("Too few args in Reaction 3. Exiting...\n");
     Printf("Expected %d, got %d\n", 3, total_args);
   }
   s = dstrtol(argv[1], NULL, 10);
@@ -27,10 +27,12 @@ void main(int argc, char *argv[]) {
       LOG("o2 send failure");
       Exit();
     }
+    Printf("o2 molecule made");
   }
   if (mbox_send(so4, sizeof(so4), SO4_MSG) != MBOX_SUCCESS) {
-    LOG("c2 send failure");
+    LOG("so4 send failure");
     Exit();
   }
+  Printf("so4 molecule made");
   semSignalOrDie(sem);
 }
