@@ -21,6 +21,7 @@ void main(int argc, char *argv[]) {
 
   num_s2 = dstrtol(argv[1], NULL, 10);
   num_co = dstrtol(argv[2], NULL, 10);
+  Printf("num co %d", num_co);
   num_r1 = num_s2;
   num_r2 = num_co / 4;
   num_r3 = (int)(num_s2 * 2) > (int)(num_co / 4) ? (int)(num_co / 4)
@@ -96,9 +97,8 @@ void main(int argc, char *argv[]) {
   for (i = 0; i < num_s2; i++) {
     process_create("injector_1.dlx.obj", 0, 0, sem_str, s2_str);
   }
-
   for (i = 0; i < num_co; i++) {
-    process_create("injector_2.dlx.obj", 0, 0, sem_str, o2_str);
+    process_create("injector_2.dlx.obj", 0, 0, sem_str, co_str);
   }
   for (i = 0; i < num_r1; i++) {
     process_create("reaction_1.dlx.obj", 0, 0, sem_str, s2_str, s_str);

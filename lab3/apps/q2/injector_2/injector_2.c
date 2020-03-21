@@ -8,7 +8,7 @@ void main(int argc, char *argv[]) {
   mbox_t co;
   sem_t sem;
   int total_args, k;
-  char message_s2[sizeof(S2_MSG)];
+  char message_s2[sizeof(CO_MSG)];
   total_args = 2;
   if (argc < total_args) {
     LOG("Too few args in Injector 2 . Exiting...\n");
@@ -17,7 +17,7 @@ void main(int argc, char *argv[]) {
 
   co = dstrtol(argv[1], NULL, 10);
   if (mbox_send(co, sizeof(co), CO_MSG) != MBOX_SUCCESS) {
-    LOG("o2 send failure");
+    LOG("co send failure");
     Exit();
   }
 
