@@ -17,7 +17,7 @@ void main(int argc, char *argv[]) {
   }
 
   s2 = dstrtol(argv[2], NULL, 10);
-  if (mbox_send(s2, sizeof(s2), S2_MSG) = !MBOX_SUCCESS) {
+  if (mbox_send(s2, sizeof(s2), S2_MSG) != MBOX_SUCCESS) {
     LOG("s2 send failure");
     Exit();
   }
