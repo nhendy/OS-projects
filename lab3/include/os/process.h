@@ -17,7 +17,8 @@
 #define PROCESS_SUCCESS 1
 #define NUM_PRIORITY_QUEUES 32
 #define PRIORITIES_PER_QUEUE 4
-#define BASE_PRIORITY 50
+#define USER_BASE_PRIORITY 50
+#define KERNEL_BASE_PRIORITY 0
 
 #define PROCESS_MAX_PROCS 32  // Maximum number of active processes
 
@@ -43,7 +44,7 @@ typedef struct {
   uint32 sleep_timestamp;
   uint32 total_cpu_time;
   uint32 time_to_sleep;
-  uint32 estcpu;
+  double estcpu;
 } TimingStats;
 
 // Process control block
@@ -59,8 +60,9 @@ typedef struct PCB {
 
   TimingStats stats;
   int sleep_time;
-  int pinfo;  // Turns on printing of runtime stats
-  int pnice;  // Used in priority calculation
+  int pinfo;     // Turns on printing of runtime stats
+  int pnice;     // Used in priority calculation
+  int priority;  // Used in priority calculation
 } PCB;
 
 // Offsets of various registers from the stack pointer in the register

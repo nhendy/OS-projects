@@ -43,6 +43,8 @@ static Queue zombieQueue;
 // we can't use malloc() inside the OS.
 static PCB pcbs[PROCESS_MAX_PROCS];
 
+static num_schedules = 0;
+
 // String listing debugging options to print out.
 char debugstr[200];
 
@@ -211,20 +213,29 @@ PCB *ProcessFindHighestPriorityPCB() {
 }
 
 void ProcessRecalcPriority(PCB *pcb) {
-  // uint32 cpu_window = ClkGetCurJiffies() - pcb->schedule_timestamp;
-  // if (cpu_window == CLOCK_DEFAULT_RESOLUTION) pcb->stats.estcpu++;
-  pcb->pnice = BASE_PRIORITY + pcb->stats.estcpu / 4 + 2 * pcb->pnice;
+  int old_priority = pcb->priority;
+  if (pcb->flags & PROCESS_TYPE_USER) {
+    printf("user, pid: %d\n", GetPidFromAddress(pcb));
+    pcb->priority = USER_BASE_PRIORITY + pcb->stats.estcpu / 4 + 2 * pcb->pnice;
+  } else {
+    printf("kernel, pid\n", GetPidFromAddress(pcb));
+    pcb->priority =
+        KERNEL_BASE_PRIORITY + pcb->stats.estcpu / 4 + 2 * pcb->pnice;
+  }
+  printf("PID: %d .Updated priority from %d to %d estcpu: ",
+         GetPidFromAddress(pcb), old_priority, pcb->priority);
+  printf("%.3f\n", pcb->stats.estcpu);
 }
 
 void ProcessDecayEstcpu(PCB *pcb) {
-  pcb->stats.estcpu = pcb->stats.estcpu * 2.0 / 3.0 + pcb->pnice;
+  pcb->stats.estcpu = (pcb->stats.estcpu * (2.0 / 3.0)) + pcb->pnice;
 }
 
 void ProcessDecayAllEstcpus() {
   int i;
   Link *l;
   PCB *pcb;
-  // if (ClkGetCurJiffies() % 100 == 0) {
+  printf("Decay all est cpus\n");
   for (i = 0; i < NUM_PRIORITY_QUEUES; ++i) {
     if (AQueueEmpty(&runQueue[i])) continue;
 
@@ -236,7 +247,6 @@ void ProcessDecayAllEstcpus() {
       l = AQueueNext(l);
     }
   }
-  // }
 }
 
 int ProcessCountAutowake() {
@@ -297,7 +307,7 @@ void PrintQueue(Queue *queue) {
   l = AQueueFirst(queue);
   while (l) {
     pcb = AQueueObject(l);
-    printf("PID %d ", GetPidFromAddress(pcb));
+    printf("PID [%d, %d] ", GetPidFromAddress(pcb), pcb->priority);
     l = AQueueNext(l);
   }
   printf("\n");
@@ -307,7 +317,7 @@ void ProcessPrintRunQueues() {
   int i;
   for (i = 0; i < NUM_PRIORITY_QUEUES; ++i) {
     if (AQueueEmpty(&runQueue[i])) continue;
-    printf("Queue %d: ", i);
+    printf("Run Queue %d: ", i);
     PrintQueue(&runQueue[i]);
   }
 }
@@ -343,26 +353,44 @@ void ProcessSchedule() {
   PCB *pcb = NULL;
   int i = 0;
   Link *l = NULL;
+  uint32 cpu_window;
+
+  if (num_schedules % 5 == 0) {
+    ProcessPrintRunQueues();
+  }
 
   dbprintf('p', "Now entering ProcessSchedule (cur=0x%x, %d ready)\n",
            (int)currentPCB, AQueueLength(&runQueue));
   ComputeAndPrintTimeStats();
   ExitIfNoRunnablesOrAutoWakes();
 
+  cpu_window = ClkGetCurJiffies() - currentPCB->stats.schedule_timestamp;
+  // NOTE: (nhendy) >= because it ends up being 11 not 10 if it runs for the
+  // entire window
+  if (cpu_window >= CLOCK_PROCESS_JIFFIES) {
+    currentPCB->stats.estcpu += 1.0;
+    printf("PID: [%d, ", GetPidFromAddress(currentPCB));
+    printf("%.3f]\n", currentPCB->stats.estcpu);
+  }
+  ProcessRecalcPriority(currentPCB);
+
+  if (num_schedules % 10 == 0) {
+    ProcessDecayAllEstcpus();
+  }
   // Move the front of the queue to the end.  The running process was the one in
   // front.
-  AQueueMoveAfter(&runQueue, AQueueLast(&runQueue), AQueueFirst(&runQueue));
+  AQueueMoveAfter(currentPCB->l->queue, AQueueLast(currentPCB->l->queue),
+                  AQueueFirst(currentPCB->l->queue));
 
   // Now, run the one at the head of the queue.
-  pcb = (PCB *)AQueueObject(AQueueFirst(&runQueue));
-  currentPCB = pcb;
+  currentPCB = ProcessFindHighestPriorityPCB();
   dbprintf('p', "About to switch to PCB 0x%x,flags=0x%x @ 0x%x\n", (int)pcb,
            pcb->flags, (int)(pcb->sysStackPtr[PROCESS_STACK_IAR]));
 
   currentPCB->stats.schedule_timestamp = ClkGetCurJiffies();
   dbprintf('p', "PID %d, schedule timestamp: %d will be scheduled\n",
            GetPidFromAddress(currentPCB), currentPCB->stats.schedule_timestamp);
-
+  printf("Scheduling PID: %d\n", GetPidFromAddress(currentPCB));
   // Clean up zombie processes here.  This is done at interrupt time
   // because it can't be done while the process might still be running
   while (!AQueueEmpty(&zombieQueue)) {
@@ -377,6 +405,7 @@ void ProcessSchedule() {
     ProcessFreeResources(pcb);
   }
   dbprintf('p', "Leaving ProcessSchedule (cur=0x%x)\n", (int)currentPCB);
+  num_schedules++;
 }
 
 //----------------------------------------------------------------------
@@ -517,7 +546,7 @@ int ProcessInsertRunning(PCB *pcb) {
   return queue;
 }
 
-int WhichQueue(PCB *pcb) { return pcb->pnice / PRIORITIES_PER_QUEUE; }
+int WhichQueue(PCB *pcb) { return pcb->priority / PRIORITIES_PER_QUEUE; }
 
 //----------------------------------------------------------------------
 //
@@ -620,9 +649,10 @@ int ProcessFork(VoidFunc func, uint32 param, int pnice, int pinfo, char *name,
   pcb->stats.schedule_timestamp = -1;
   pcb->stats.sleep_timestamp = -1;
   pcb->stats.total_cpu_time = 0;
+  pcb->stats.time_to_sleep = 0;
+  pcb->stats.estcpu = 0;
   pcb->pinfo = pinfo;
   pcb->pnice = pnice;
-  pcb->stats.time_to_sleep = 0;
 
   //----------------------------------------------------------------------
   // This section sets up the stack frame for the process.  This is done
@@ -748,6 +778,8 @@ int ProcessFork(VoidFunc func, uint32 param, int pnice, int pinfo, char *name,
   // from the base of the PCB array).
   dbprintf('p', "ProcessFork (%d): function complete\n", GetCurrentPid());
 
+  ProcessRecalcPriority(pcb);
+  ProcessPrintRunQueues();
   return (pcb - pcbs);
 }
 
