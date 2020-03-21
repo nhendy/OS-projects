@@ -15,6 +15,9 @@
 
 #define PROCESS_FAIL 0
 #define PROCESS_SUCCESS 1
+#define NUM_PRIORITY_QUEUES 32
+#define PRIORITIES_PER_QUEUE 4
+#define BASE_PRIORITY 50
 
 #define PROCESS_MAX_PROCS 32  // Maximum number of active processes
 
@@ -37,8 +40,11 @@ typedef void (*VoidFunc)();
 typedef struct {
   uint32 schedule_timestamp;
   uint32 fork_timestamp;
+  uint32 sleep_timestamp;
   uint32 total_cpu_time;
-} TimeingStats;
+  uint32 time_to_sleep;
+  uint32 estcpu;
+} TimingStats;
 
 // Process control block
 typedef struct PCB {
@@ -51,7 +57,8 @@ typedef struct PCB {
   int npages;            // Number of pages allocated to this process
   Link *l;               // Used for keeping PCB in queues
 
-  TimeingStats stats;
+  TimingStats stats;
+  int sleep_time;
   int pinfo;  // Turns on printing of runtime stats
   int pnice;  // Used in priority calculation
 } PCB;
@@ -102,6 +109,12 @@ void process_create(char *name, ...);
 int GetPidFromAddress(PCB *pcb);
 
 void ProcessUserSleep(int seconds);
+int ProcessInsertRunning(PCB *pcb);
 void ProcessYield();
-
+int WhichQueue(PCB *pcb);
+PCB *ProcessFindHighestPriorityPCB();
+void ProcessDecayEstcpu(PCB *pcb);
+void ProcessDecayAllEstcpus();
+int ProcessCountAutowake();
+void ProcessRecalcPriority(PCB *pcb);
 #endif /* __process_h__ */
