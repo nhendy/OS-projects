@@ -177,6 +177,25 @@ void ProcessSetResult(PCB *pcb, uint32 result) {
   pcb->currentSavedFrame[PROCESS_STACK_IREG + 1] = result;
 }
 
+void ComputeAndPrintTimeStats() {
+  int curr_time;
+  curr_time = ClkGetCurJiffies();
+  if (currentPCB->stats.schedule_timestamp != -1) {
+    currentPCB->stats.total_cpu_time +=
+        curr_time - currentPCB->stats.schedule_timestamp;
+  }
+  /* if (pcb->pinfo == 1) { */
+  printf(PROCESS_CPUSTATS_FORMAT, GetPidFromAddress(currentPCB),
+         currentPCB->stats.total_cpu_time, 0);
+  printf(
+      "PID: %d Fork Timestamp %d, delta from fork : %d, Schedule timestamp: "
+      "%d, Current Timestamp : %d\n",
+      GetPidFromAddress(currentPCB), currentPCB->stats.fork_timestamp,
+      ClkGetCurJiffies() - currentPCB->stats.fork_timestamp,
+      currentPCB->stats.schedule_timestamp, ClkGetCurJiffies());
+  /* } */
+}
+
 //----------------------------------------------------------------------
 //
 //	ProcessSchedule
@@ -205,6 +224,7 @@ void ProcessSchedule() {
 
   dbprintf('p', "Now entering ProcessSchedule (cur=0x%x, %d ready)\n",
            (int)currentPCB, AQueueLength(&runQueue));
+  ComputeAndPrintTimeStats();
   // The OS exits if there's no runnable process.  This is a feature, not a
   // bug.  An easy solution to allowing no runnable "user" processes is to
   // have an "idle" process that's simply an infinite loop.
@@ -228,6 +248,7 @@ void ProcessSchedule() {
 
   // Move the front of the queue to the end.  The running process was the one in
   // front.
+
   AQueueMoveAfter(&runQueue, AQueueLast(&runQueue), AQueueFirst(&runQueue));
 
   // Now, run the one at the head of the queue.
@@ -235,6 +256,10 @@ void ProcessSchedule() {
   currentPCB = pcb;
   dbprintf('p', "About to switch to PCB 0x%x,flags=0x%x @ 0x%x\n", (int)pcb,
            pcb->flags, (int)(pcb->sysStackPtr[PROCESS_STACK_IAR]));
+
+  currentPCB->stats.schedule_timestamp = ClkGetCurJiffies();
+  printf("PID %d, schedule timestamp: %d will be scheduled\n",
+         GetPidFromAddress(currentPCB), currentPCB->stats.schedule_timestamp);
 
   // Clean up zombie processes here.  This is done at interrupt time
   // because it can't be done while the process might still be running
@@ -269,6 +294,11 @@ void ProcessSuspend(PCB *suspend) {
   ASSERT(suspend->flags & PROCESS_STATUS_RUNNABLE,
          "Trying to suspend a non-running process!\n");
   ProcessSetStatus(suspend, PROCESS_STATUS_WAITING);
+  printf(
+      "Suspending PID: %d, CPU time: %d, Schedule timestamp: %d, Current "
+      "timestamp: %d\n",
+      GetPidFromAddress(suspend), suspend->stats.total_cpu_time,
+      suspend->stats.schedule_timestamp, ClkGetCurJiffies());
 
   if (AQueueRemove(&(suspend->l)) != QUEUE_SUCCESS) {
     printf(
@@ -339,6 +369,7 @@ void ProcessWakeup(PCB *wakeup) {
 //
 //----------------------------------------------------------------------
 void ProcessDestroy(PCB *pcb) {
+  printf("Destroying\n");
   dbprintf('p', "ProcessDestroy (%d): function started\n", GetCurrentPid());
   ProcessSetStatus(pcb, PROCESS_STATUS_ZOMBIE);
   if (AQueueRemove(&(pcb->l)) != QUEUE_SUCCESS) {
@@ -465,6 +496,12 @@ int ProcessFork(VoidFunc func, uint32 param, int pnice, int pinfo, char *name,
   dbprintf('p', "Setting up PCB @ 0x%x (sys stack=0x%x, mem=0x%x, size=0x%x)\n",
            (int)pcb, pcb->sysStackArea, pcb->pagetable[0],
            pcb->npages * MEMORY_PAGE_SIZE);
+  // Assign first timestamp
+  pcb->stats.fork_timestamp = ClkGetCurJiffies();
+  pcb->stats.schedule_timestamp = -1;
+  pcb->stats.total_cpu_time = 0;
+  pcb->pinfo = pinfo;
+  pcb->pnice = pnice;
 
   //----------------------------------------------------------------------
   // This section sets up the stack frame for the process.  This is done
@@ -586,6 +623,7 @@ int ProcessFork(VoidFunc func, uint32 param, int pnice, int pinfo, char *name,
     dbprintf('p', "Setting currentPCB=0x%x, stackframe=0x%x\n", (int)pcb,
              (int)(pcb->currentSavedFrame));
     currentPCB = pcb;
+    currentPCB->stats.schedule_timestamp = ClkGetCurJiffies();
   }
 
   dbprintf('p', "Leaving ProcessFork (%s)\n", name);

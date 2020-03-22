@@ -34,6 +34,12 @@
 
 typedef void (*VoidFunc)();
 
+typedef struct {
+  uint32 schedule_timestamp;
+  uint32 fork_timestamp;
+  uint32 total_cpu_time;
+} TimeingStats;
+
 // Process control block
 typedef struct PCB {
   uint32 *currentSavedFrame;  // -> current saved frame.  MUST BE 1ST!
@@ -45,6 +51,7 @@ typedef struct PCB {
   int npages;            // Number of pages allocated to this process
   Link *l;               // Used for keeping PCB in queues
 
+  TimeingStats stats;
   int pinfo;  // Turns on printing of runtime stats
   int pnice;  // Used in priority calculation
 } PCB;

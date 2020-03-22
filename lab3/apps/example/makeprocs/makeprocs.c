@@ -61,13 +61,14 @@ void main(int argc, char *argv[]) {
   // process_create with a NULL argument so that the operating system
   // knows how many arguments you are sending.
   for (i = 0; i < numprocs; i++) {
-    process_create(FILENAME_TO_RUN, 0, 0, h_mbox_str, s_procs_completed_str,
+    process_create(FILENAME_TO_RUN, 0, 1, h_mbox_str, s_procs_completed_str,
                    NULL);
     Printf("makeprocs (%d): Process %d created\n", getpid(), i);
   }
 
   // Send the missile code messages
   for (i = 0; i < numprocs; i++) {
+    mc.really_important_char += i;
     if (mbox_send(h_mbox, sizeof(missile_code), (void *)&mc) == MBOX_FAIL) {
       Printf("Could not send message to mailbox %d in %s (%d)\n", h_mbox,
              argv[0], getpid());
