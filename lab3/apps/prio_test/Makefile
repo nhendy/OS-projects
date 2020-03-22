@@ -6,5 +6,5 @@ clean:
 	cd makeprocs; make clean
 	cd spawn_me; make clean
 
-run:
+run: default
 	cd ../../bin; dlxsim -x os.dlx.obj -a  -u makeprocs.dlx.obj 3; ee469_fixterminal
