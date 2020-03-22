@@ -175,11 +175,19 @@ int MboxOpenInternal(Mbox* mbox) {
 }
 
 int MboxOpen(mbox_t handle) {
-  dbprintf('y', "MboxOpen: Entering, PID: %d\n", GetCurrentPid());
+  dbprintf('y', "MboxOpen: Entering, PID: %d. Opening mbox: %d\n",
+           GetCurrentPid(), handle);
   // Fail if the handle is corrupt
-  if (!SanityCheckHandle(handle)) return MBOX_FAIL;
+  if (!SanityCheckHandle(handle)) {
+    printf("PID: %d. Failed to open mbox due to bad handle\n", GetCurrentPid());
+    return MBOX_FAIL;
+  }
   // Fail if it's already open
-  if (MboxOpenedByPid(&mboxes[handle])) return MBOX_FAIL;
+  if (MboxOpenedByPid(&mboxes[handle])) {
+    printf("PID: %d. Failed to open mbox as it already opened it previously\n",
+           GetCurrentPid());
+    return MBOX_FAIL;
+  }
   return MboxOpenInternal(&mboxes[handle]);
 }
 

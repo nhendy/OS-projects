@@ -16,6 +16,14 @@ void main(int argc, char **argv) {
   s = dstrtol(argv[2], NULL, 10);
   sem = dstrtol(argv[3], NULL, 10);
 
+  if (mbox_open(s2) == MBOX_FAIL) {
+    LOG("Error in opening s2 mbox");
+    Exit();
+  }
+  if (mbox_open(s) == MBOX_FAIL) {
+    LOG("Error in opening s mbox");
+    Exit();
+  }
   if (mbox_recv(s2, sizeof(s2), (char *)message) != MBOX_SUCCESS) {
     LOG("S2 receive failure");
     Exit();

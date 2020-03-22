@@ -18,6 +18,18 @@ void main(int argc, char *argv[]) {
   o2 = dstrtol(argv[2], NULL, 10);
   so4 = dstrtol(argv[3], NULL, 10);
   sem = dstrtol(argv[4], NULL, 10);
+  if (mbox_open(s) == MBOX_FAIL) {
+    LOG("Error in opening s mbox");
+    Exit();
+  }
+  if (mbox_open(o2) == MBOX_FAIL) {
+    LOG("Error in opening o2 mbox");
+    Exit();
+  }
+  if (mbox_open(so4) == MBOX_FAIL) {
+    LOG("Error in opening so4 mbox");
+    Exit();
+  }
   if (mbox_recv(s, sizeof(s), message_s) != MBOX_SUCCESS) {
     LOG("Bad s receive");
     Exit();

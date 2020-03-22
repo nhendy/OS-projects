@@ -21,7 +21,7 @@ void main(int argc, char *argv[]) {
 
   num_s2 = dstrtol(argv[1], NULL, 10);
   num_co = dstrtol(argv[2], NULL, 10);
-  Printf("num co %d", num_co);
+  /* Printf("num co %d", num_co); */
   num_r1 = num_s2;
   num_r2 = num_co / 4;
   num_r3 = (int)(num_s2 * 2) > (int)(num_co / 4) ? (int)(num_co / 4)

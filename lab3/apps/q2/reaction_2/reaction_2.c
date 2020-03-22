@@ -20,6 +20,18 @@ void main(int argc, char *argv[]) {
   c2 = dstrtol(argv[3], NULL, 10);
   sem = dstrtol(argv[4], NULL, 10);
 
+  if (mbox_open(co) == MBOX_FAIL) {
+    LOG("Error in opening co mbox");
+    Exit();
+  }
+  if (mbox_open(c2) == MBOX_FAIL) {
+    LOG("Error in opening c2 mbox");
+    Exit();
+  }
+  if (mbox_open(o2) == MBOX_FAIL) {
+    LOG("Error in opening o2 mbox");
+    Exit();
+  }
   for (k = 0; k < 4; k++) {
     if (mbox_recv(co, sizeof(co), (char *)message) != MBOX_SUCCESS) {
       LOG("CO receive failure");

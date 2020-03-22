@@ -16,6 +16,10 @@ void main(int argc, char *argv[]) {
   }
 
   co = dstrtol(argv[1], NULL, 10);
+  if (mbox_open(co) == MBOX_FAIL) {
+    LOG("Error in opening co mbox");
+    Exit();
+  }
   if (mbox_send(co, sizeof(co), CO_MSG) != MBOX_SUCCESS) {
     LOG("co send failure");
     Exit();
