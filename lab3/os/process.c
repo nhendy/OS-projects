@@ -21,7 +21,6 @@
 // Pointer to the current PCB.  This is used by the assembly language
 // routines for context switches.
 PCB *currentPCB;
-PCB *idlePCB;
 
 // List of free PCBs.
 static Queue freepcbs;
@@ -191,9 +190,10 @@ void ComputeAndPrintTimeStats() {
         curr_time - currentPCB->stats.schedule_timestamp;
   }
   if (currentPCB->pinfo == 1) {
-    printf(PROCESS_CPUSTATS_FORMAT, GetPidFromAddress(currentPCB),
-           currentPCB->stats.total_cpu_time, 0);
-    printf(
+    dbprintf('k', PROCESS_CPUSTATS_FORMAT, GetPidFromAddress(currentPCB),
+             currentPCB->stats.total_cpu_time, 0);
+    dbprintf(
+        'k',
         "PID: %d Fork Timestamp %d, delta from fork : %d, Schedule timestamp: "
         "%d, Current Timestamp : %d\n",
         GetPidFromAddress(currentPCB), currentPCB->stats.fork_timestamp,
@@ -215,9 +215,11 @@ PCB *ProcessFindHighestPriorityPCB() {
 
 void ProcessRecalcPriority(PCB *pcb) {
   int old_priority = pcb->priority;
-  if (pcb->flags & PROCESS_TYPE_USER) {
+  if (pcb->flags & PROCESS_TYPE_IDLE) {
+    pcb->priority = 127;
+  } else if (pcb->flags & PROCESS_TYPE_USER) {
     pcb->priority = USER_BASE_PRIORITY + pcb->stats.estcpu / 4 + 2 * pcb->pnice;
-  } else {
+  } else if (pcb->flags & PROCESS_TYPE_SYSTEM) {
     pcb->priority =
         KERNEL_BASE_PRIORITY + pcb->stats.estcpu / 4 + 2 * pcb->pnice;
   }
@@ -230,7 +232,25 @@ void ProcessDecayEstcpu(PCB *pcb) {
   pcb->stats.estcpu = (pcb->stats.estcpu * (2.0 / 3.0)) + pcb->pnice;
 }
 
-void ProcessDecayAllEstcpus() {
+double pow(double base, int exponent) {
+  double result = 1;
+  int i;
+  for (i = 0; i < exponent; ++i) {
+    result *= base;
+  }
+  return result;
+}
+
+void ProcessDecayEstcpuSleep(PCB *pcb, int time_asleep_jiffies) {
+  int num_decay_windows_asleep;
+  if (time_asleep_jiffies > 100) {
+    num_decay_windows_asleep = time_asleep_jiffies / 100;
+    pcb->stats.estcpu =
+        pow(pcb->stats.estcpu * (2.0 / 3.0), num_decay_windows_asleep);
+  }
+}
+
+void ProcessDecayAllEstcpusAndRecalcPriorities() {
   int i;
   Link *l;
   PCB *pcb;
@@ -270,7 +290,7 @@ int CountNonIdleProcesses(Queue *runQueue) {
   l = AQueueFirst(runQueue);
   while (l) {
     pcb = AQueueObject(l);
-    if (pcb != idlePCB) count++;
+    if ((pcb->flags & PROCESS_TYPE_IDLE) == 0) count++;
     l = AQueueNext(l);
   }
   return count;
@@ -357,6 +377,42 @@ void ProcessRelocate(PCB *pcb) {
   ProcessInsertRunning(pcb);
 }
 
+void CleanUpZombies() {
+  PCB *pcb;
+  // Clean up zombie processes here.  This is done at interrupt time
+  // because it can't be done while the process might still be running
+  while (!AQueueEmpty(&zombieQueue)) {
+    pcb = (PCB *)AQueueObject(AQueueFirst(&zombieQueue));
+    dbprintf('p', "Freeing zombie PCB 0x%x.\n", (int)pcb);
+    if (AQueueRemove(&(pcb->l)) != QUEUE_SUCCESS) {
+      printf(
+          "FATAL ERROR: could not remove zombie process from zombieQueue in "
+          "ProcessSchedule!\n");
+      exitsim();
+    }
+    ProcessFreeResources(pcb);
+  }
+}
+
+void MaybeAutoWake() {
+  Link *l;
+  PCB *pcb;
+  int time_asleep_jiffies;
+  if (AQueueEmpty(&waitQueue)) return;
+  l = AQueueFirst(&waitQueue);
+  while (l) {
+    pcb = AQueueObject(l);
+    if (pcb->stats.time_to_sleep > 0) {
+      time_asleep_jiffies = ClkGetCurJiffies() - pcb->stats.sleep_timestamp;
+      if (time_asleep_jiffies > pcb->stats.time_to_sleep) {
+        ProcessDecayEstcpuSleep(pcb, time_asleep_jiffies);
+        ProcessRecalcPriority(pcb);
+        ProcessWakeup(pcb);
+      }
+    }
+    l = AQueueNext(l);
+  }
+}
 //----------------------------------------------------------------------
 //
 //	ProcessSchedule
@@ -390,39 +446,54 @@ void ProcessSchedule() {
   Link *l = NULL;
   uint32 cpu_window;
 
-  /* if (num_schedules % 5 == 0) { */
   ProcessPrintRunQueues();
-  /* } */
 
   dbprintf('p', "Now entering ProcessSchedule (cur=0x%x, %d ready)\n",
            (int)currentPCB, AQueueLength(&runQueue));
   ComputeAndPrintTimeStats();
   ExitIfNoRunnablesOrAutoWakes();
 
-  cpu_window = ClkGetCurJiffies() - currentPCB->stats.schedule_timestamp;
-  // Move the front of the queue to the end.  The running process was the one in
-  // front.
-  AQueueMoveAfter(currentPCB->l->queue, AQueueLast(currentPCB->l->queue),
-                  AQueueFirst(currentPCB->l->queue));
-  // NOTE: (nhendy) >= because it ends up being 11 not 10 if it runs for the
-  // entire window
-  if (cpu_window >= CLOCK_PROCESS_JIFFIES) {
-    currentPCB->stats.estcpu += 1.0;
-    dbprintf('p', "[PID, estcpu]: [%d, ", GetPidFromAddress(currentPCB));
-    dbprintf('p', "%.3f]\n", currentPCB->stats.estcpu);
-    ProcessRecalcPriority(currentPCB);
-    ProcessRelocate(currentPCB);
+  // Runnable or yielding processes have to be round robin scheduled
+  if ((currentPCB->flags &
+       (PROCESS_STATUS_RUNNABLE | PROCESS_STATUS_YIELDING))) {
+    // Move the front of the queue to the end.  The running process was the one
+    // in
+    // front.
+    AQueueMoveAfter(currentPCB->l->queue, AQueueLast(currentPCB->l->queue),
+                    AQueueFirst(currentPCB->l->queue));
   }
-
-  if (ClkGetCurJiffies() - last_trigger_jiffies > 100) {
-    ProcessDecayAllEstcpus();
-    last_trigger_jiffies = ClkGetCurJiffies();
-    ProcessFixRunQueues();
-    ProcessPrintRunQueues();
+  // Only runnable processes get their estcpu decayed
+  if ((currentPCB->flags &
+       (PROCESS_STATUS_RUNNABLE | PROCESS_STATUS_YIELDING)) ==
+      PROCESS_STATUS_RUNNABLE) {
+    cpu_window = ClkGetCurJiffies() - currentPCB->stats.schedule_timestamp;
+    // NOTE: (nhendy) >= because it ends up being 11 not 10 if it runs for the
+    // entire window
+    if (cpu_window >= CLOCK_PROCESS_JIFFIES) {
+      currentPCB->stats.estcpu += 1.0;
+      dbprintf('p', "[PID, estcpu]: [%d, ", GetPidFromAddress(currentPCB));
+      dbprintf('p', "%.3f]\n", currentPCB->stats.estcpu);
+      ProcessRecalcPriority(currentPCB);
+      ProcessRelocate(currentPCB);
+    }
+    if (ClkGetCurJiffies() - last_trigger_jiffies > 100) {
+      ProcessDecayAllEstcpusAndRecalcPriorities();
+      last_trigger_jiffies = ClkGetCurJiffies();
+      ProcessFixRunQueues();
+      ProcessPrintRunQueues();
+    }
   }
+  // Reset yielding flag
+  currentPCB->flags &= (~PROCESS_STATUS_YIELDING);
 
   // Now, run the one at the head of the queue.
   currentPCB = ProcessFindHighestPriorityPCB();
+  // If idle process. Retry.
+  if (currentPCB->flags & PROCESS_TYPE_IDLE) {
+    AQueueMoveAfter(currentPCB->l->queue, AQueueLast(currentPCB->l->queue),
+                    AQueueFirst(currentPCB->l->queue));
+    currentPCB = ProcessFindHighestPriorityPCB();
+  }
   dbprintf('p', "About to switch to PCB 0x%x,flags=0x%x @ 0x%x\n", (int)pcb,
            pcb->flags, (int)(pcb->sysStackPtr[PROCESS_STACK_IAR]));
 
@@ -430,19 +501,8 @@ void ProcessSchedule() {
   dbprintf('p', "PID %d, schedule timestamp: %d will be scheduled\n",
            GetPidFromAddress(currentPCB), currentPCB->stats.schedule_timestamp);
   dbprintf('k', "Scheduling PID: %d\n", GetPidFromAddress(currentPCB));
-  // Clean up zombie processes here.  This is done at interrupt time
-  // because it can't be done while the process might still be running
-  while (!AQueueEmpty(&zombieQueue)) {
-    pcb = (PCB *)AQueueObject(AQueueFirst(&zombieQueue));
-    dbprintf('p', "Freeing zombie PCB 0x%x.\n", (int)pcb);
-    if (AQueueRemove(&(pcb->l)) != QUEUE_SUCCESS) {
-      printf(
-          "FATAL ERROR: could not remove zombie process from zombieQueue in "
-          "ProcessSchedule!\n");
-      exitsim();
-    }
-    ProcessFreeResources(pcb);
-  }
+  CleanUpZombies();
+  MaybeAutoWake();
   dbprintf('p', "Leaving ProcessSchedule (cur=0x%x)\n", (int)currentPCB);
   num_schedules++;
 }
@@ -506,6 +566,8 @@ void ProcessWakeup(PCB *wakeup) {
   ASSERT(wakeup->flags & PROCESS_STATUS_WAITING,
          "Trying to wake up a non-sleeping process!\n");
   ProcessSetStatus(wakeup, PROCESS_STATUS_RUNNABLE);
+  wakeup->stats.time_to_sleep = 0;
+  wakeup->stats.sleep_timestamp = 0;
   if (AQueueRemove(&(wakeup->l)) != QUEUE_SUCCESS) {
     printf(
         "FATAL ERROR: could not remove wakeup PCB from waitQueue in "
@@ -590,6 +652,13 @@ int ProcessInsertRunning(PCB *pcb) {
 
 int WhichQueue(PCB *pcb) { return pcb->priority / PRIORITIES_PER_QUEUE; }
 
+void ProcessIdle() {
+  while (1)
+    ;
+}
+
+void ProcessForkIdle() { ProcessFork(&ProcessIdle, 0, 0, 1, "idle", 0); }
+
 //----------------------------------------------------------------------
 //
 //	ProcessFork
@@ -660,7 +729,7 @@ int ProcessFork(VoidFunc func, uint32 param, int pnice, int pinfo, char *name,
   pcb->npages = 1;
   newPage = MemoryAllocPage();
   if (newPage == 0) {
-    printf("aFATAL: couldn't allocate memory - no free pages!\n");
+    printf("FATAL: couldn't allocate memory - no free pages!\n");
     exitsim();  // NEVER RETURNS!
   }
   pcb->pagetable[0] = MemorySetupPte(newPage);
@@ -796,6 +865,9 @@ int ProcessFork(VoidFunc func, uint32 param, int pnice, int pinfo, char *name,
 
     // Mark this as a system process.
     pcb->flags |= PROCESS_TYPE_SYSTEM;
+    if (func == &ProcessIdle) {
+      pcb->flags |= PROCESS_TYPE_IDLE;
+    }
   }
 
   // Place PCB onto run queue
@@ -1146,6 +1218,8 @@ void main(int argc, char *argv[]) {
     dbprintf('i', "No user program passed!\n");
   }
 
+  ProcessForkIdle();
+
   // Start the clock which will in turn trigger periodic ProcessSchedule's
   ClkStart();
 
@@ -1209,6 +1283,12 @@ int GetPidFromAddress(PCB *pcb) { return (int)(pcb - pcbs); }
 //--------------------------------------------------------
 void ProcessUserSleep(int seconds) {
   // Your code here
+  currentPCB->stats.sleep_timestamp = ClkGetCurJiffies();
+  currentPCB->stats.time_to_sleep =
+      (double)seconds / ((double)ClkGetResolution() / 1e6);
+  dbprintf('k', "Sleeping for  %d seconds  %d jiffies\n", seconds,
+           currentPCB->stats.time_to_sleep);
+  ProcessSuspend(currentPCB);
 }
 
 //-----------------------------------------------------
@@ -1216,6 +1296,4 @@ void ProcessUserSleep(int seconds) {
 // This should immediately be followed by a call to
 // ProcessSchedule (in traps.c).
 //-----------------------------------------------------
-void ProcessYield() {
-  // Your code here
-}
+void ProcessYield() { currentPCB->flags |= (PROCESS_STATUS_YIELDING); }
