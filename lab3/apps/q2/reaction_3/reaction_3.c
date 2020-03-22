@@ -30,18 +30,18 @@ void main(int argc, char *argv[]) {
     LOG("Error in opening so4 mbox");
     Exit();
   }
-  if (mbox_recv(s, sizeof(s), message_s) != MBOX_SUCCESS) {
+  if (mbox_recv(s, sizeof(S_MSG), message_s) != MBOX_SUCCESS) {
     LOG("Bad s receive");
     Exit();
   }
   for (k = 0; k < 2; k++) {
-    if (mbox_send(o2, sizeof(o2), O2_MSG) != MBOX_SUCCESS) {
+    if (mbox_send(o2, sizeof(O2_MSG), O2_MSG) != MBOX_SUCCESS) {
       LOG("o2 send failure");
       Exit();
     }
     Printf("o2 molecule made");
   }
-  if (mbox_send(so4, sizeof(so4), SO4_MSG) != MBOX_SUCCESS) {
+  if (mbox_send(so4, sizeof(SO4_MSG), SO4_MSG) != MBOX_SUCCESS) {
     LOG("so4 send failure");
     Exit();
   }

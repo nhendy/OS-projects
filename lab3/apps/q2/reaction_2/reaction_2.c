@@ -33,13 +33,13 @@ void main(int argc, char *argv[]) {
     Exit();
   }
   for (k = 0; k < 4; k++) {
-    if (mbox_recv(co, sizeof(co), (char *)message) != MBOX_SUCCESS) {
+    if (mbox_recv(co, sizeof(CO_MSG), (void *)message) != MBOX_SUCCESS) {
       LOG("CO receive failure");
       Exit();
     }
   }
   for (k = 0; k < 2; k++) {
-    if (mbox_send(o2, sizeof(o2), O2_MSG) != MBOX_SUCCESS) {
+    if (mbox_send(o2, sizeof(O2_MSG), O2_MSG) != MBOX_SUCCESS) {
       LOG("o2 send failure");
       Exit();
     }
@@ -47,7 +47,7 @@ void main(int argc, char *argv[]) {
   }
 
   for (k = 0; k < 2; k++) {
-    if (mbox_send(c2, sizeof(c2), C2_MSG) != MBOX_SUCCESS) {
+    if (mbox_send(c2, sizeof(C2_MSG), C2_MSG) != MBOX_SUCCESS) {
       LOG("c2 send failure");
       Exit();
     }

@@ -15,18 +15,17 @@ void main(int argc, char *argv[]) {
     LOG("Too few args in Injector 1. Exiting...\n");
     Printf("Expected %d, got %d\n", total_args, argc);
   }
-
+  sem = dstrtol(argv[1], NULL, 10);
   s2 = dstrtol(argv[2], NULL, 10);
   if (mbox_open(s2) == MBOX_FAIL) {
     LOG("Error in opening s2 mbox");
     Exit();
   }
-  if (mbox_send(s2, sizeof(s2), S2_MSG) != MBOX_SUCCESS) {
+  if (mbox_send(s2, sizeof(S2_MSG), S2_MSG) != MBOX_SUCCESS) {
     LOG("s2 send failure");
     Exit();
   }
 
   Printf("S2 molecule made, %d\n", getpid());
-
   semSignalOrDie(sem);
 }
