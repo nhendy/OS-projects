@@ -21,13 +21,13 @@ void main(int argc, char *argv[]) {
 
   num_s2 = dstrtol(argv[1], NULL, 10);
   num_co = dstrtol(argv[2], NULL, 10);
-  /* Printf("num co %d", num_co); */
   num_r1 = num_s2;
   num_r2 = num_co / 4;
   num_r3 = (int)(num_s2 * 2) > (int)(num_co / 4) ? (int)(num_co / 4)
                                                  : (int)(num_s2 * 2);
+  Printf("num_r3: %d\n", num_r3);
   total_procs = num_s2 + num_co + num_r1 + num_r2 + num_r3;
-  if ((sem = sem_create(-(total_procs) - 1)) == SYNC_FAIL) {
+  if ((sem = sem_create(-(total_procs - 1))) == SYNC_FAIL) {
     LOG("Bad semphore");
     Exit();
   }
@@ -102,17 +102,15 @@ void main(int argc, char *argv[]) {
   for (i = 0; i < num_co; i++) {
     process_create("injector_2.dlx.obj", 0, 0, sem_str, co_str);
   }
-  for (i = 0; i < 1; i++) {
+  for (i = 0; i < num_r1; i++) {
     process_create("reaction_1.dlx.obj", 0, 0, sem_str, s2_str, s_str);
   }
-  // for (i = 0; i < num_r2; i++) {
-  //   process_create("reaction_2.dlx.obj", 0, 0, sem_str, co_str, o2_str,
-  // c2_str);
-  // }
-  // for (i = 0; i < num_r3; i++) {
-  //   process_create("reaction_3.dlx.obj", 0, 0, sem_str, s_str, o2_str,
-  // so4_str);
-  // }
+  for (i = 0; i < num_r2; i++) {
+    process_create("reaction_2.dlx.obj", 0, 0, sem_str, co_str, o2_str, c2_str);
+  }
+  for (i = 0; i < num_r3; i++) {
+    process_create("reaction_3.dlx.obj", 0, 0, sem_str, s_str, o2_str, so4_str);
+  }
 
   if (sem_wait(sem) == SYNC_FAIL) {
     LOG("bad semaphore in %d");

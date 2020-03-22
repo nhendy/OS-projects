@@ -20,6 +20,7 @@ void main(int argc, char *argv[]) {
     LOG("Error in opening co mbox");
     Exit();
   }
+  Printf("Co mbox: %d\n", co);
   if (mbox_send(co, sizeof(CO_MSG), CO_MSG) != MBOX_SUCCESS) {
     LOG("co send failure");
     Exit();

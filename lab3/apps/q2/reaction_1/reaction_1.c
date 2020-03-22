@@ -25,7 +25,7 @@ void main(int argc, char **argv) {
     LOG("Error in opening s mbox\n");
     Exit();
   }
-  if (mbox_recv(s2, sizeof(S2_MSG), (void *)message) != MBOX_SUCCESS) {
+  if (mbox_recv(s2, sizeof(S2_MSG), (void *)message) == MBOX_FAIL) {
     LOG("S2 receive failure\n");
     Exit();
   }
@@ -39,6 +39,6 @@ void main(int argc, char **argv) {
     Exit();
   }
   Printf("S molecule made\n");
-  Printf("Reaction 1 is over. PID: %d!!\n", getpid());
+  Printf("Reaction_1 (%d): Good bye!!!!\n", getpid());
   semSignalOrDie(sem);
 }

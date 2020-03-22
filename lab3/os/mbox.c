@@ -390,6 +390,7 @@ int ReadOutMessageData(MboxMessage* mssg, int maxlength, void* message) {
     mssg->inuse = 0;
     mssg->length = 0;
   }
+  dbprintf("Read %d bytes\n", num_bytes);
   return num_bytes;
 }
 
@@ -424,6 +425,7 @@ int MboxRecvInternal(Mbox* mbox, int maxlength, void* message) {
       // manually because the `GUARDED_SCOPE` is being
       // exitted prematurely
       LockHandleRelease(mbox->mbox_lock);
+      dbprintf('y', "PID: %d. Failed due to invalid length\n", GetCurrentPid());
       return MBOX_FAIL;
     }
     UNINTERRUPTIBLE_SCOPE(interrupts, dummy2) {
