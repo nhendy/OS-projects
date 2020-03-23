@@ -96,13 +96,15 @@ $(OUTPUT): $(OUTDLX)
 	cp $(WORKDIR)/$(EXEC) $(OUTPUT)
 
 # Builds DLX output file using the C compiler from all object files
-$(OUTDLX): $(WORKOBJS) $(WORKASMOBJS) $(OBJLIBS)
-	$(CC) $(CFLAGS) $(INCDIR) -o $@ $(WORKOBJS) $(WORKASMOBJS) $(OBJLIBS)
+$(OUTDLX): $(WORKOBJS) $(WORKASMOBJS) $(OBJLIBS) $(INTERNAL_LIBS_OBJS)
+	$(CC) $(CFLAGS) $(INCDIR) -o $@ $(WORKOBJS) $(WORKASMOBJS) $(OBJLIBS) $(INTERNAL_LIBS_OBJS)
 
 # Builds any given object file from C source files
 $(WORKDIR)/%.o:%.c
 	$(CC) $(CFLAGS) $(INCDIR) -c -o $@ $<
 
+$(WORKDIR)/%.o:$(INTERNAL_LIBS_DIR)/%.c
+	$(CC) $(CFLAGS) $(INCDIR) -c -o $@ $<
 # Removes all intermediate files to force full rebuild
 clean:
 	-rm -rf $(WORKDIR) $(OUTPUT) Makefile.depend $(OUTDIR)/vm
