@@ -15,5 +15,5 @@ clean:
 	cd reaction_3; make clean
 	@echo "Done"
 run: default
-	cd ../../bin; dlxsim -x os.dlx.obj -a  -u makeprocs.dlx.obj 4 4; ee469_fixterminal
+	cd ../../bin; dlxsim -x os.dlx.obj -a  -u makeprocs.dlx.obj 1 4; ee469_fixterminal
 	# cd ../../bin; dlxsim -x os.dlx.obj -a -u makeprocs.dlx.obj 1 4; ee469_fixterminal

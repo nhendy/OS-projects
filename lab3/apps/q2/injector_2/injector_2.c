@@ -17,15 +17,14 @@ void main(int argc, char *argv[]) {
   sem = dstrtol(argv[1], NULL, 10);
   co = dstrtol(argv[2], NULL, 10);
   if (mbox_open(co) == MBOX_FAIL) {
-    LOG("Error in opening co mbox");
+    Printf("Error in opening CO in pid %d\n", getpid());
     Exit();
   }
-  Printf("Co mbox: %d\n", co);
   if (mbox_send(co, sizeof(CO_MSG), CO_MSG) != MBOX_SUCCESS) {
-    LOG("co send failure");
+    Printf("Error in sending CO in pid %d\n", getpid());
     Exit();
   }
 
-  Printf("CO molecule made, %d\n", getpid());
+  Printf("CO molecule made succesfully in pid %d\n", getpid());
   semSignalOrDie(sem);
 }

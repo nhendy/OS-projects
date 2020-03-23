@@ -25,7 +25,6 @@ void main(int argc, char *argv[]) {
   num_r2 = num_co / 4;
   num_r3 = (int)(num_s2 * 2) > (int)(num_co / 4) ? (int)(num_co / 4)
                                                  : (int)(num_s2 * 2);
-  Printf("num_r3: %d\n", num_r3);
   total_procs = num_s2 + num_co + num_r1 + num_r2 + num_r3;
   if ((sem = sem_create(-(total_procs - 1))) == SYNC_FAIL) {
     LOG("Bad semphore");
@@ -33,32 +32,32 @@ void main(int argc, char *argv[]) {
   }
 
   if ((s2 = mbox_create()) == MBOX_FAIL) {
-    LOG("Error in creating s2 mbox");
+    Printf("Error in creating S2 in pid %d\n", getpid());
     Exit();
   }
 
   if ((co = mbox_create()) == MBOX_FAIL) {
-    LOG("Error in creating co mbox");
+    Printf("Error in creating CO in pid %d\n", getpid());
     Exit();
   }
 
   if ((s = mbox_create()) == MBOX_FAIL) {
-    LOG("Error in creating s mbox");
+    Printf("Error in creating S in pid %d\n", getpid());
     Exit();
   }
 
   if ((o2 = mbox_create()) == MBOX_FAIL) {
-    LOG("Error in creating o2 mbox");
+    Printf("Error in creating O2 in pid %d\n", getpid());
     Exit();
   }
 
   if ((c2 = mbox_create()) == MBOX_FAIL) {
-    LOG("Error in creating c2 mbox");
+    Printf("Error in creating C2 in pid %d\n", getpid());
     Exit();
   }
 
   if ((so4 = mbox_create()) == MBOX_FAIL) {
-    LOG("Error in creating so4 mbox");
+    Printf("Error in creating SO4 in pid %d\n", getpid());
     Exit();
   }
 
@@ -72,27 +71,27 @@ void main(int argc, char *argv[]) {
 
   // open
   if (mbox_open(s2) == MBOX_FAIL) {
-    LOG("Error in opening s2 mbox");
+    Printf("Error in opening S2 in pid %d\n", getpid());
     Exit();
   }
   if (mbox_open(co) == MBOX_FAIL) {
-    LOG("Error in opening co mbox");
+    Printf("Error in opening CO in pid %d\n", getpid());
     Exit();
   }
   if (mbox_open(s) == MBOX_FAIL) {
-    LOG("Error in opening s mbox");
+    Printf("Error in opening S in pid %d\n", getpid());
     Exit();
   }
   if (mbox_open(o2) == MBOX_FAIL) {
-    LOG("Error in opening o2 mbox");
+    Printf("Error in opening O2 in pid %d\n", getpid());
     Exit();
   }
   if (mbox_open(c2) == MBOX_FAIL) {
-    LOG("Error in opening c2 mbox");
+    Printf("Error in opening C2 in pid %d\n", getpid());
     Exit();
   }
   if (mbox_open(so4) == MBOX_FAIL) {
-    LOG("Error in opening so4 mbox");
+    Printf("Error in opening SO4 in pid %d\n", getpid());
     Exit();
   }
 
@@ -113,31 +112,31 @@ void main(int argc, char *argv[]) {
   }
 
   if (sem_wait(sem) == SYNC_FAIL) {
-    LOG("bad semaphore in %d");
+    LOG("Bad semaphore in %d");
     Exit();
   }
   if (mbox_close(s2) == MBOX_FAIL) {
-    LOG("Error in closing s2 mbox");
+    Printf("Error in closing S2 in pid %d\n", getpid());
     Exit();
   }
   if (mbox_close(co) == MBOX_FAIL) {
-    LOG("Error in closing co mbox");
+    Printf("Error in closing CO in pid %d\n", getpid());
     Exit();
   }
   if (mbox_close(s) == MBOX_FAIL) {
-    LOG("Error in closing s mbox %d");
+    Printf("Error in opening S in pid %d\n", getpid());
     Exit();
   }
   if (mbox_close(o2) == MBOX_FAIL) {
-    LOG("Error in closing o2 mbox");
+    Printf("Error in opening O2 in pid %d\n", getpid());
     Exit();
   }
   if (mbox_close(so4) == MBOX_FAIL) {
-    LOG("Error in closing so4 mbox");
+    Printf("Error in closing S04 in pid %d\n", getpid());
     Exit();
   }
   if (mbox_close(c2) == MBOX_FAIL) {
-    LOG("Error in closing c2 mbox ");
+    Printf("Error in closing C2 in pid %d\n", getpid());
     Exit();
   }
 

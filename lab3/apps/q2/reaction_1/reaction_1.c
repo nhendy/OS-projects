@@ -10,35 +10,36 @@ void main(int argc, char **argv) {
   char message[sizeof(S2_MSG)];
   if (argc < total_args) {
     LOG("Two few args in Reaction 1. Exiting...\n");
-    Printf("Expected %d, got %d\n", 3, total_args);
+    Printf("Expected %d, got %d\n", total_args, argc);
   }
   s2 = dstrtol(argv[2], NULL, 10);
   s = dstrtol(argv[3], NULL, 10);
   sem = dstrtol(argv[1], NULL, 10);
 
   if (mbox_open(s2) == MBOX_FAIL) {
-    LOG("Error in opening s2 mbox");
+    Printf("Error in opening S2 in pid %d\n", getpid());
     Exit();
   }
-  Printf("s2: %d, s: %d\n", s2, s);
   if (mbox_open(s) == MBOX_FAIL) {
-    LOG("Error in opening s mbox\n");
+    Printf("Error in opening S in pid %d\n", getpid());
     Exit();
   }
   if (mbox_recv(s2, sizeof(S2_MSG), (void *)message) == MBOX_FAIL) {
-    LOG("S2 receive failure\n");
+    Printf("Error in receiving S2 in pid %d\n", getpid());
     Exit();
   }
   if (mbox_send(s, sizeof(S_MSG), message) != MBOX_SUCCESS) {
-    LOG("S send failure\n");
+    Printf("Error in sending S in pid %d\n", getpid());
     Exit();
   }
-  Printf("S molecule made\n");
+  Printf("S molecule made succesfully in pid %d\n", getpid());
+
   if (mbox_send(s, sizeof(S_MSG), message) != MBOX_SUCCESS) {
-    LOG("S send failure\n");
+    Printf("Error in sending S in pid %d\n", getpid());
     Exit();
   }
-  Printf("S molecule made\n");
+  Printf("S molecule made succesfully in pid %d\n", getpid());
+
   Printf("Reaction_1 (%d): Good bye!!!!\n", getpid());
   semSignalOrDie(sem);
 }

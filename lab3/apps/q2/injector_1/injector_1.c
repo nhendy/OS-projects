@@ -18,14 +18,13 @@ void main(int argc, char *argv[]) {
   sem = dstrtol(argv[1], NULL, 10);
   s2 = dstrtol(argv[2], NULL, 10);
   if (mbox_open(s2) == MBOX_FAIL) {
-    LOG("Error in opening s2 mbox");
+    Printf("Error in opening S2 in pid %d\n", getpid());
     Exit();
   }
   if (mbox_send(s2, sizeof(S2_MSG), S2_MSG) != MBOX_SUCCESS) {
-    LOG("s2 send failure");
+    Printf("Error in sending S2 in pid %d\n", getpid());
     Exit();
   }
-
-  Printf("S2 molecule made, %d\n", getpid());
+  Printf("S2 molecule made succesfully in pid %d\n", getpid());
   semSignalOrDie(sem);
 }
