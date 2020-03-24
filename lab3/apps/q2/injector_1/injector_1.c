@@ -25,6 +25,6 @@ void main(int argc, char *argv[]) {
     Printf("Error in sending S2 in pid %d\n", getpid());
     Exit();
   }
-  Printf("S2 molecule made succesfully in pid %d\n", getpid());
+  Printf("S2 injected into Radeon atmosphere, PID: %d\n", getpid());
   semSignalOrDie(sem);
 }

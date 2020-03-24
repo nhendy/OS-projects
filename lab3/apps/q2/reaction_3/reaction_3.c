@@ -46,8 +46,7 @@ void main(int argc, char *argv[]) {
     Printf("Error in sending SO4 in pid %d\n", getpid());
     Exit();
   }
-  Printf("SO4 molecule made succesfully in pid %d\n", getpid());
 
-  Printf("Reaction_3 (%d): Good bye!!!!\n", getpid());
+  Printf("S + 2 O2 -> SO4 reacted, PID: %d\n", getpid());
   semSignalOrDie(sem);
 }
