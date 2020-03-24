@@ -342,9 +342,8 @@ void ProcessPrintRunQueues() {
 }
 
 void ProcessFixRunQueues() {
-  int i, j;
+  int i;
   int current_timestamp = ClkGetCurJiffies();
-  int length;
   Link *l;
   Link *l_nxt;
   PCB *pcb;
@@ -368,7 +367,7 @@ void ProcessFixRunQueues() {
               "FATAL ERROR: could not allocate link in ProcessFixRunQueues!\n");
           exitsim();
         }
-        pcb->stats.fixed_timestamp = current_timestamp;
+        pcb->stats.fixed_timestamp = current_timestamp + 1;
         ProcessInsertRunning(pcb);
       }
       l = l_nxt;
@@ -417,7 +416,7 @@ void MaybeAutoWake() {
     pcb = AQueueObject(l);
     if (pcb->stats.time_to_sleep > 0) {
       time_asleep_jiffies = ClkGetCurJiffies() - pcb->stats.sleep_timestamp;
-      if (time_asleep_jiffies > pcb->stats.time_to_sleep) {
+      if (time_asleep_jiffies >= pcb->stats.time_to_sleep) {
         ProcessDecayEstcpuSleep(pcb, time_asleep_jiffies);
         ProcessRecalcPriority(pcb);
         ProcessWakeup(pcb);
@@ -448,22 +447,17 @@ void MaybeAutoWake() {
 //
 //----------------------------------------------------------------------
 void ProcessSchedule() {
-  PCB *pcb = NULL;
-  int i = 0;
-  Link *l = NULL;
   uint32 cpu_window;
-
-  dbprintf('p', "Now entering ProcessSchedule (cur=0x%x, %d ready)\n",
-           (int)currentPCB, AQueueLength(&runQueue));
+  uint32 intrs;
   ComputeAndPrintTimeStats();
+  intrs = DisableIntrs();
   ExitIfNoRunnablesOrAutoWakes();
 
   // Runnable or yielding processes have to be round robin scheduled
   if ((currentPCB->flags &
        (PROCESS_STATUS_RUNNABLE | PROCESS_STATUS_YIELDING))) {
     // Move the front of the queue to the end.  The running process was the one
-    // in
-    // front.
+    // in front.
     AQueueMoveAfter(currentPCB->l->queue, AQueueLast(currentPCB->l->queue),
                     AQueueFirst(currentPCB->l->queue));
   }
@@ -482,11 +476,12 @@ void ProcessSchedule() {
     ProcessRecalcPriority(currentPCB);
     ProcessRelocate(currentPCB);
   }
+  MaybeAutoWake();
   if (ClkGetCurJiffies() - last_trigger_jiffies >= 100) {
     ProcessDecayAllEstcpusAndRecalcPriorities();
     last_trigger_jiffies = ClkGetCurJiffies();
+    ProcessFixRunQueues();
   }
-  ProcessFixRunQueues();
   ProcessPrintRunQueues();
   // Reset yielding flag
   currentPCB->flags &= (~PROCESS_STATUS_YIELDING);
@@ -499,15 +494,13 @@ void ProcessSchedule() {
                     AQueueFirst(currentPCB->l->queue));
     currentPCB = ProcessFindHighestPriorityPCB();
   }
-  dbprintf('p', "About to switch to PCB 0x%x,flags=0x%x @ 0x%x\n", (int)pcb,
-           pcb->flags, (int)(pcb->sysStackPtr[PROCESS_STACK_IAR]));
 
   currentPCB->stats.schedule_timestamp = ClkGetCurJiffies();
   dbprintf('p', "PID %d, schedule timestamp: %d will be scheduled\n",
            GetPidFromAddress(currentPCB), currentPCB->stats.schedule_timestamp);
   dbprintf('k', "Scheduling PID: %d\n", GetPidFromAddress(currentPCB));
   CleanUpZombies();
-  MaybeAutoWake();
+  RestoreIntrs(intrs);
   dbprintf('p', "Leaving ProcessSchedule (cur=0x%x)\n", (int)currentPCB);
 }
 
