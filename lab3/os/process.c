@@ -449,6 +449,7 @@ void MaybeAutoWake() {
 void ProcessSchedule() {
   uint32 cpu_window;
   uint32 intrs;
+  PCB *pcb;
   ComputeAndPrintTimeStats();
   intrs = DisableIntrs();
   ExitIfNoRunnablesOrAutoWakes();
@@ -476,20 +477,26 @@ void ProcessSchedule() {
     ProcessRecalcPriority(currentPCB);
     ProcessRelocate(currentPCB);
   }
-  MaybeAutoWake();
+
   if (ClkGetCurJiffies() - last_trigger_jiffies >= 100) {
     ProcessDecayAllEstcpusAndRecalcPriorities();
     last_trigger_jiffies = ClkGetCurJiffies();
     ProcessFixRunQueues();
   }
   ProcessPrintRunQueues();
+  MaybeAutoWake();
   // Reset yielding flag
   currentPCB->flags &= (~PROCESS_STATUS_YIELDING);
-
+  pcb = currentPCB;
   // Now, run the one at the head of the queue.
   currentPCB = ProcessFindHighestPriorityPCB();
   // If idle process. Retry.
   if (currentPCB->flags & PROCESS_TYPE_IDLE) {
+    AQueueMoveAfter(currentPCB->l->queue, AQueueLast(currentPCB->l->queue),
+                    AQueueFirst(currentPCB->l->queue));
+    currentPCB = ProcessFindHighestPriorityPCB();
+  }
+  if (pcb == currentPCB) {
     AQueueMoveAfter(currentPCB->l->queue, AQueueLast(currentPCB->l->queue),
                     AQueueFirst(currentPCB->l->queue));
     currentPCB = ProcessFindHighestPriorityPCB();
@@ -1216,7 +1223,6 @@ void main(int argc, char *argv[]) {
   }
 
   ProcessForkIdle();
-
   // Start the clock which will in turn trigger periodic ProcessSchedule's
   ClkStart();
 

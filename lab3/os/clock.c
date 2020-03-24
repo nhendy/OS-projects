@@ -61,7 +61,7 @@ int ClkInterrupt() {
 
     // Now check to see if enough jiffies have occurred to trigger
     // another ProcessSchedule
-    if (curtime - last_trigger_jiffies >= CLOCK_PROCESS_JIFFIES) {
+    if (curtime - last_trigger_jiffies > CLOCK_PROCESS_JIFFIES) {
       last_trigger_jiffies = curtime;
       dbprintf('c', "ClkInterrupt: calling ProcessSchedule\n");
       return 1;  // can call ProcessSchedule
