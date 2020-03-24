@@ -6,6 +6,8 @@ void main(int argc, char *argv[]) {
   sem_t sem;
   int num_s2, num_co;
   int num_r1, num_r2, num_r3;
+  int remaining_s2, remaining_co, remaining_o2, remaining_c2, created_so4,
+      remaining_s;
   mbox_t s2, s, co, o2, c2, so4;
   char s2_str[10], s_str[10], co_str[10], o2_str[10], c2_str[10], so4_str[10];
   int total_procs;
@@ -21,10 +23,14 @@ void main(int argc, char *argv[]) {
 
   num_s2 = dstrtol(argv[1], NULL, 10);
   num_co = dstrtol(argv[2], NULL, 10);
+
+  Printf("Creating %d S2s and %d COs.\n", num_s2, num_co);
+
   num_r1 = num_s2;
   num_r2 = num_co / 4;
   num_r3 = (int)(num_s2 * 2) > (int)(num_co / 4) ? (int)(num_co / 4)
                                                  : (int)(num_s2 * 2);
+
   total_procs = num_s2 + num_co + num_r1 + num_r2 + num_r3;
   if ((sem = sem_create(-(total_procs - 1))) == SYNC_FAIL) {
     LOG("Bad semphore");
@@ -139,6 +145,15 @@ void main(int argc, char *argv[]) {
     Printf("Error in closing C2 in pid %d\n", getpid());
     Exit();
   }
+  remaining_s = num_s2 * 2 - num_r3;
+  remaining_co = num_co - 4 * num_r2;
+  remaining_s2 = num_s2 - num_r1;  // always 0
+  remaining_o2 = 2 * num_r2 - num_r3 * 2;
+  remaining_c2 = num_r2 * 2;
+  created_so4 = num_r3;
 
-  LOG("All spawned process  done")
+  Printf(
+      "%d CO's left over. %d O2's left over. %d C2's left over. %d S's left "
+      "over. %d SO4's created.\n",
+      remaining_co, remaining_o2, remaining_c2, remaining_s, created_so4);
 }
