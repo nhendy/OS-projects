@@ -217,10 +217,11 @@ void ProcessRecalcPriority(PCB *pcb) {
   if (pcb->flags & PROCESS_TYPE_IDLE) {
     pcb->priority = 127;
   } else if (pcb->flags & PROCESS_TYPE_USER) {
-    pcb->priority = USER_BASE_PRIORITY + pcb->stats.estcpu / 4 + 2 * pcb->pnice;
+    pcb->priority =
+        USER_BASE_PRIORITY + pcb->stats.estcpu / 4.0 + 2 * pcb->pnice;
   } else if (pcb->flags & PROCESS_TYPE_SYSTEM) {
     pcb->priority =
-        KERNEL_BASE_PRIORITY + pcb->stats.estcpu / 4 + 2 * pcb->pnice;
+        KERNEL_BASE_PRIORITY + pcb->stats.estcpu / 4.0 + 2 * pcb->pnice;
   }
   dbprintf('k', "PID: %d .Updated priority from %d to %d estcpu: ",
            GetPidFromAddress(pcb), old_priority, pcb->priority);
@@ -446,19 +447,11 @@ void MaybeAutoWake() {
 //	which was saved.
 //
 //----------------------------------------------------------------------
-// - Check all runQueues are nonempty
-// - Recompute priorities
-// - Pick highest prio runQueue
-// - Pick first if first time running this queue otherwise round robin
-// -
-//
 void ProcessSchedule() {
   PCB *pcb = NULL;
   int i = 0;
   Link *l = NULL;
   uint32 cpu_window;
-
-  ProcessPrintRunQueues();
 
   dbprintf('p', "Now entering ProcessSchedule (cur=0x%x, %d ready)\n",
            (int)currentPCB, AQueueLength(&runQueue));
@@ -485,17 +478,16 @@ void ProcessSchedule() {
       currentPCB->stats.estcpu += 1.0f;
       dbprintf('p', "[PID, estcpu]: [%d, ", GetPidFromAddress(currentPCB));
       dbprintf('p', "%.3f]\n", currentPCB->stats.estcpu);
-      // ProcessRelocate(currentPCB);
     }
     ProcessRecalcPriority(currentPCB);
+    ProcessRelocate(currentPCB);
   }
   if (ClkGetCurJiffies() - last_trigger_jiffies >= 100) {
-    ProcessPrintRunQueues();
     ProcessDecayAllEstcpusAndRecalcPriorities();
     last_trigger_jiffies = ClkGetCurJiffies();
-    ProcessPrintRunQueues();
   }
   ProcessFixRunQueues();
+  ProcessPrintRunQueues();
   // Reset yielding flag
   currentPCB->flags &= (~PROCESS_STATUS_YIELDING);
 
