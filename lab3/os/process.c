@@ -42,7 +42,6 @@ static Queue zombieQueue;
 // we can't use malloc() inside the OS.
 static PCB pcbs[PROCESS_MAX_PROCS];
 
-static int num_schedules = 0;
 static int last_trigger_jiffies = 0;
 
 // String listing debugging options to print out.
@@ -190,8 +189,8 @@ void ComputeAndPrintTimeStats() {
         curr_time - currentPCB->stats.schedule_timestamp;
   }
   if (currentPCB->pinfo == 1) {
-    dbprintf('k', PROCESS_CPUSTATS_FORMAT, GetPidFromAddress(currentPCB),
-             currentPCB->stats.total_cpu_time, 0);
+    printf(PROCESS_CPUSTATS_FORMAT, GetPidFromAddress(currentPCB),
+           currentPCB->stats.total_cpu_time, currentPCB->priority);
     dbprintf(
         'k',
         "PID: %d Fork Timestamp %d, delta from fork : %d, Schedule timestamp: "
@@ -243,7 +242,7 @@ double pow(double base, int exponent) {
 
 void ProcessDecayEstcpuSleep(PCB *pcb, int time_asleep_jiffies) {
   int num_decay_windows_asleep;
-  if (time_asleep_jiffies > 100) {
+  if (time_asleep_jiffies >= 100) {
     num_decay_windows_asleep = time_asleep_jiffies / 100;
     pcb->stats.estcpu =
         pow(pcb->stats.estcpu * (2.0 / 3.0), num_decay_windows_asleep);
@@ -342,24 +341,37 @@ void ProcessPrintRunQueues() {
 }
 
 void ProcessFixRunQueues() {
-  int i;
-  for (i = 0; i < PROCESS_MAX_PROCS; ++i) {
-    if ((pcbs[i].flags & PROCESS_STATUS_RUNNABLE) != PROCESS_STATUS_RUNNABLE)
-      continue;
-    dbprintf('k', "Process status 0x%x\n", pcbs[i].flags);
-    dbprintf('k', "Removing PID %d from queue %d\n",
-             GetPidFromAddress(&pcbs[i]), (int)(pcbs[i].l->queue - runQueue));
-    if (AQueueRemove(&(pcbs[i].l)) != QUEUE_SUCCESS) {
-      printf(
-          "FATAL ERROR: could not remove link from freepcbsQueue in "
-          "ProcessFixRunQueues!\n");
-      exitsim();
+  int i, j;
+  int current_timestamp = ClkGetCurJiffies();
+  int length;
+  Link *l;
+  Link *l_nxt;
+  PCB *pcb;
+  dbprintf('k', "ProcessFixRunQueues\n");
+  for (i = 0; i < NUM_PRIORITY_QUEUES; ++i) {
+    if (AQueueEmpty(&runQueue[i])) continue;
+    dbprintf('k', "Queue %d: length: %d\n", i, AQueueLength(&runQueue[i]));
+    l = AQueueFirst(&runQueue[i]);
+    while (l) {
+      l_nxt = AQueueNext(l);
+      pcb = AQueueObject(l);
+      if (pcb->stats.fixed_timestamp < current_timestamp) {
+        if (AQueueRemove(&(pcb->l)) != QUEUE_SUCCESS) {
+          printf(
+              "FATAL ERROR: could not remove link from freepcbsQueue in "
+              "ProcessFixRunQueues!\n");
+          exitsim();
+        }
+        if ((pcb->l = AQueueAllocLink(pcb)) == NULL) {
+          printf(
+              "FATAL ERROR: could not allocate link in ProcessFixRunQueues!\n");
+          exitsim();
+        }
+        pcb->stats.fixed_timestamp = current_timestamp;
+        ProcessInsertRunning(pcb);
+      }
+      l = l_nxt;
     }
-    if ((pcbs[i].l = AQueueAllocLink(&pcbs[i])) == NULL) {
-      printf("FATAL ERROR: could not allocate link in ProcessFixRunQueues!\n");
-      exitsim();
-    }
-    ProcessInsertRunning(&pcbs[i]);
   }
 }
 
@@ -470,19 +482,20 @@ void ProcessSchedule() {
     // NOTE: (nhendy) >= because it ends up being 11 not 10 if it runs for the
     // entire window
     if (cpu_window >= CLOCK_PROCESS_JIFFIES) {
-      currentPCB->stats.estcpu += 1.0;
+      currentPCB->stats.estcpu += 1.0f;
       dbprintf('p', "[PID, estcpu]: [%d, ", GetPidFromAddress(currentPCB));
       dbprintf('p', "%.3f]\n", currentPCB->stats.estcpu);
-      ProcessRecalcPriority(currentPCB);
-      ProcessRelocate(currentPCB);
+      // ProcessRelocate(currentPCB);
     }
-    if (ClkGetCurJiffies() - last_trigger_jiffies > 100) {
-      ProcessDecayAllEstcpusAndRecalcPriorities();
-      last_trigger_jiffies = ClkGetCurJiffies();
-      ProcessFixRunQueues();
-      ProcessPrintRunQueues();
-    }
+    ProcessRecalcPriority(currentPCB);
   }
+  if (ClkGetCurJiffies() - last_trigger_jiffies >= 100) {
+    ProcessPrintRunQueues();
+    ProcessDecayAllEstcpusAndRecalcPriorities();
+    last_trigger_jiffies = ClkGetCurJiffies();
+    ProcessPrintRunQueues();
+  }
+  ProcessFixRunQueues();
   // Reset yielding flag
   currentPCB->flags &= (~PROCESS_STATUS_YIELDING);
 
@@ -504,7 +517,6 @@ void ProcessSchedule() {
   CleanUpZombies();
   MaybeAutoWake();
   dbprintf('p', "Leaving ProcessSchedule (cur=0x%x)\n", (int)currentPCB);
-  num_schedules++;
 }
 
 //----------------------------------------------------------------------
