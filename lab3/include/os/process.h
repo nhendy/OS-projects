@@ -44,6 +44,7 @@ typedef struct {
   uint32 schedule_timestamp;
   uint32 fork_timestamp;
   uint32 sleep_timestamp;
+  uint32 fixed_timestamp;
   uint32 total_cpu_time;
   uint32 time_to_sleep;
   double estcpu;
