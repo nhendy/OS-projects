@@ -245,8 +245,14 @@ void ProcessDecayEstcpuSleep(PCB *pcb, int time_asleep_jiffies) {
   int num_decay_windows_asleep;
   if (time_asleep_jiffies >= 100) {
     num_decay_windows_asleep = time_asleep_jiffies / 100;
+    dbprintf(
+        'l',
+        "Waking up PID %d. Slept for %d jiffies, %d windows .estcpu before : ",
+        GetPidFromAddress(pcb), time_asleep_jiffies, num_decay_windows_asleep);
+    dbprintf('l', " %.3f after: ", pcb->stats.estcpu);
     pcb->stats.estcpu =
-        pow(pcb->stats.estcpu * (2.0 / 3.0), num_decay_windows_asleep);
+        pcb->stats.estcpu * pow((2.0 / 3.0), num_decay_windows_asleep);
+    dbprintf('l', " %.3f\n ", pcb->stats.estcpu);
   }
 }
 
@@ -276,7 +282,7 @@ int ProcessCountAutowake() {
   l = AQueueFirst(&waitQueue);
   while (l) {
     pcb = AQueueObject(l);
-    if (pcb->stats.time_to_sleep > 0) count++;
+    if (pcb->stats.sleep_timestamp > 0) count++;
     l = AQueueNext(l);
   }
   return count;
@@ -410,13 +416,16 @@ void MaybeAutoWake() {
   Link *l;
   PCB *pcb;
   int time_asleep_jiffies;
+  /* dbprintf('l', "Maybe autowake @ %d\n", ClkGetCurJiffies()); */
   if (AQueueEmpty(&waitQueue)) return;
   l = AQueueFirst(&waitQueue);
   while (l) {
     pcb = AQueueObject(l);
-    if (pcb->stats.time_to_sleep > 0) {
+    if (pcb->stats.sleep_timestamp > 0) {
       time_asleep_jiffies = ClkGetCurJiffies() - pcb->stats.sleep_timestamp;
       if (time_asleep_jiffies >= pcb->stats.time_to_sleep) {
+        dbprintf('l', "Autowaking PID %d. Slept @ %d\n", GetPidFromAddress(pcb),
+                 pcb->stats.sleep_timestamp);
         ProcessDecayEstcpuSleep(pcb, time_asleep_jiffies);
         ProcessRecalcPriority(pcb);
         ProcessWakeup(pcb);
@@ -496,6 +505,7 @@ void ProcessSchedule() {
                     AQueueFirst(currentPCB->l->queue));
     currentPCB = ProcessFindHighestPriorityPCB();
   }
+  // Constraint to make sure we're not giving a PCB 2 consecutive quanta
   if (pcb == currentPCB) {
     AQueueMoveAfter(currentPCB->l->queue, AQueueLast(currentPCB->l->queue),
                     AQueueFirst(currentPCB->l->queue));
@@ -533,7 +543,8 @@ void ProcessSuspend(PCB *suspend) {
            "timestamp: %d\n",
            GetPidFromAddress(suspend), suspend->stats.total_cpu_time,
            suspend->stats.schedule_timestamp, ClkGetCurJiffies());
-
+  dbprintf('k', "Set pid %d to waiting 0x%x\n ", GetPidFromAddress(suspend),
+           suspend->flags & PROCESS_STATUS_MASK);
   if (AQueueRemove(&(suspend->l)) != QUEUE_SUCCESS) {
     printf(
         "FATAL ERROR: could not remove process from run Queue in "
@@ -661,7 +672,7 @@ void ProcessIdle() {
     ;
 }
 
-void ProcessForkIdle() { ProcessFork(&ProcessIdle, 0, 0, 1, "idle", 0); }
+void ProcessForkIdle() { ProcessFork(&ProcessIdle, 0, 0, 0, "idle", 0); }
 
 //----------------------------------------------------------------------
 //
@@ -761,8 +772,8 @@ int ProcessFork(VoidFunc func, uint32 param, int pnice, int pinfo, char *name,
            pcb->npages * MEMORY_PAGE_SIZE);
   // Assign first timestamp
   pcb->stats.fork_timestamp = ClkGetCurJiffies();
-  pcb->stats.schedule_timestamp = -1;
-  pcb->stats.sleep_timestamp = -1;
+  pcb->stats.schedule_timestamp = 0;
+  pcb->stats.sleep_timestamp = 0;
   pcb->stats.total_cpu_time = 0;
   pcb->stats.time_to_sleep = 0;
   pcb->stats.estcpu = 0;
@@ -1289,7 +1300,7 @@ void ProcessUserSleep(int seconds) {
   currentPCB->stats.sleep_timestamp = ClkGetCurJiffies();
   currentPCB->stats.time_to_sleep =
       (double)seconds / ((double)ClkGetResolution() / 1e6);
-  dbprintf('k', "Sleeping for  %d seconds  %d jiffies\n", seconds,
+  dbprintf('l', "Sleeping for  %d seconds  %d jiffies\n", seconds,
            currentPCB->stats.time_to_sleep);
   ProcessSuspend(currentPCB);
 }
@@ -1299,4 +1310,7 @@ void ProcessUserSleep(int seconds) {
 // This should immediately be followed by a call to
 // ProcessSchedule (in traps.c).
 //-----------------------------------------------------
-void ProcessYield() { currentPCB->flags |= (PROCESS_STATUS_YIELDING); }
+void ProcessYield() {
+  dbprintf('l', "PID %d, yielding\n", GetCurrentPid());
+  currentPCB->flags |= (PROCESS_STATUS_YIELDING);
+}
