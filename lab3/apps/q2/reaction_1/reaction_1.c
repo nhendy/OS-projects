@@ -32,14 +32,12 @@ void main(int argc, char **argv) {
     Printf("Error in sending S in pid %d\n", getpid());
     Exit();
   }
-  Printf("S molecule made succesfully in pid %d\n", getpid());
 
   if (mbox_send(s, sizeof(S_MSG), message) != MBOX_SUCCESS) {
     Printf("Error in sending S in pid %d\n", getpid());
     Exit();
   }
-  Printf("S molecule made succesfully in pid %d\n", getpid());
 
-  Printf("Reaction_1 (%d): Good bye!!!!\n", getpid());
+  Printf("S2 -> S + S reacted, PID: %d\n", getpid());
   semSignalOrDie(sem);
 }

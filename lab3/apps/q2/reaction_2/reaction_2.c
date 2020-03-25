@@ -43,7 +43,6 @@ void main(int argc, char *argv[]) {
       Printf("Error in sending O2 in pid %d\n", getpid());
       Exit();
     }
-    Printf("O2 molecule made succesfully in pid %d\n", getpid());
   }
 
   for (k = 0; k < 2; k++) {
@@ -51,8 +50,7 @@ void main(int argc, char *argv[]) {
       Printf("Error in sending C2 in pid %d\n", getpid());
       Exit();
     }
-    Printf("C2 molecule made succesfully in pid %d\n", getpid());
   }
-  Printf("Reaction_2 (%d): Good bye!!!!\n", getpid());
+  Printf("4 CO -> 2 O2 + 2 C2 reacted, PID: %d\n", getpid());
   semSignalOrDie(sem);
 }
