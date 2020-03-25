@@ -672,7 +672,7 @@ void ProcessIdle() {
     ;
 }
 
-void ProcessForkIdle() { ProcessFork(&ProcessIdle, 0, 0, 0, "idle", 0); }
+void ProcessForkIdle() { ProcessFork(&ProcessIdle, 0, 0, 1, "idle", 0); }
 
 //----------------------------------------------------------------------
 //
