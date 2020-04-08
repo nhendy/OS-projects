@@ -22,7 +22,7 @@ void MemorySetFreemap(int p, int b) {
   uint32 wd = p / 32;
   uint32 bitnum = p % 32;
 
-  freepages[wd] = (freepages[wd] & invert(1 << bitnum)) | (b << bitnum);
+  freemap[wd] = (freemap[wd] & invert(1 << bitnum)) | (b << bitnum);
 }
 
 //----------------------------------------------------------------------
@@ -35,8 +35,6 @@ void MemorySetFreemap(int p, int b) {
 //	being emitted.
 //
 //----------------------------------------------------------------------
-static int negativeone = 0xFFFFFFFF;
-static uint32 invert(uint32 n) { return (n ^ negativeone); }
 
 //----------------------------------------------------------------------
 //
@@ -61,10 +59,11 @@ int MemoryGetSize() { return (*((int *)DLX_MEMSIZE_ADDRESS)); }
 
 void MemoryModuleInit() {
   int i;
-  int maxpage = MemoryGetSize() / MEMORY_PAGE_SIZE;
   int curpage;
+  int maxpage = MemoryGetSize() / MEM_PAGE_SIZE;
+  ;
 
-  pagestart = (lastosaddress & 0xFFFFFFFC) / MEMORY_PAGE_SIZE;
+  pagestart = (lastosaddress & invert(0x3)) / MEM_PAGE_SIZE;
   freemapmax = (maxpage + 31) / 32;
   dbprintf('m', "Map has %d entries, memory size is 0x%x.\n", freemapmax,
            maxpage);
@@ -72,7 +71,7 @@ void MemoryModuleInit() {
   for (i = 0; i < freemapmax; i++) {
     // Initially, all pages are considered in use.  This is done to make
     // sure we don't have any partially initialized freemap entries.
-    freepages[i] = 0;
+    freemap[i] = 0;
   }
   nfreepages = 0;
   for (curpage = pagestart; curpage < maxpage; curpage++) {
@@ -91,8 +90,8 @@ void MemoryModuleInit() {
 //
 //----------------------------------------------------------------------
 uint32 MemoryTranslateUserToSystem(PCB *pcb, uint32 addr) {
-  int page = addr / MEMORY_PAGE_SIZE;
-  int offset = addr % MEMORY_PAGE_SIZE;
+  int page = addr / MEM_PAGE_SIZE;
+  int offset = addr % MEM_PAGE_SIZE;
 
   if (page > pcb->npages) {
     return (0);
@@ -147,7 +146,7 @@ int MemoryMoveBetweenSpaces(PCB *pcb, unsigned char *system,
     // address.  MEM_PAGESIZE should be the size (in bytes) of 1 page of memory.
     // MEM_ADDRESS_OFFSET_MASK should be the bit mask required to get just the
     // "offset" portion of an address.
-    bytesToCopy = MEM_PAGESIZE - ((uint32)curUser & MEM_ADDRESS_OFFSET_MASK);
+    bytesToCopy = MEM_PAGE_SIZE - ((uint32)curUser & MEM_ADDRESS_OFFSET_MASK);
 
     // Now find minimum of bytes in this page vs. total bytes left to copy
     if (bytesToCopy > n) {
@@ -190,6 +189,19 @@ int MemoryCopyUserToSystem(PCB *pcb, unsigned char *from, unsigned char *to,
   return (MemoryMoveBetweenSpaces(pcb, to, from, n, -1));
 }
 
+int AddPageToProcessOrKill(PCB *pcb, int page_idx) {
+  uint32 new_page;
+  new_page = MemoryAllocPage();
+  if (new_page == 0) {
+    printf("PID %d. Could not allocate page in AddPageToProcess.\n");
+    ProcessKill();
+    return MEM_FAIL;
+  }
+  pcb->pagetable[page_idx] = MemorySetupPte(new_page);
+  pcb->npages += 1;
+  return MEM_SUCCESS;
+}
+
 //---------------------------------------------------------------------
 // MemoryPageFaultHandler is called in traps.c whenever a page fault
 // (better known as a "seg fault" occurs.  If the address that was
@@ -204,7 +216,20 @@ int MemoryCopyUserToSystem(PCB *pcb, unsigned char *from, unsigned char *to,
 // Note: The existing code is incomplete and only for reference.
 // Feel free to edit.
 //---------------------------------------------------------------------
-int MemoryPageFaultHandler(PCB *pcb) { return MEM_FAIL; }
+int MemoryPageFaultHandler(PCB *pcb) {
+  uint32 accessed_addr = pcb->currentSavedFrame[PROCESS_STACK_FAULT];
+  uint32 user_stack_ptr =
+      pcb->currentSavedFrame[PROCESS_STACK_USER_STACKPOINTER];
+
+  // TODO: (nhendy) do we kill process if there are no available pages?
+  if (accessed_addr >= user_stack_ptr) {
+    return AddPageToProcessOrKill(pcb, ADDRESS_TO_PAGE(accessed_addr));
+  } else {
+    ProcessKill();
+  }
+
+  return MEM_FAIL;
+}
 
 //---------------------------------------------------------------------
 // You may need to implement the following functions and access them from
@@ -221,25 +246,25 @@ inline int MemoryAllocPage() {
     return (0);
   }
   dbprintf('m', "Allocating memory, starting with page %d\n", mapnum);
-  while (freepages[mapnum] == 0) {
+  while (freemap[mapnum] == 0) {
     mapnum += 1;
     if (mapnum >= freemapmax) {
       mapnum = 0;
     }
   }
-  v = freepages[mapnum];
+  v = freemap[mapnum];
   for (bitnum = 0; (v & (1 << bitnum)) == 0; bitnum++) {
   }
-  freepages[mapnum] &= invert(1 << bitnum);
+  freemap[mapnum] &= invert(1 << bitnum);
   v = (mapnum * 32) + bitnum;
   dbprintf('m', "Allocated memory, from map %d, page %d, map=0x%x.\n", mapnum,
-           v, freepages[mapnum]);
+           v, freemap[mapnum]);
   nfreepages -= 1;
   return (v);
 }
 
 void MemoryFreePte(uint32 pte) {
-  MemoryFreePage(ADDRESS_TO_PAGE((pte & MEMORY_PTE_MASK)));
+  MemoryFreePage(ADDRESS_TO_PAGE((pte & MEM_PTE_MASK)));
 }
 
 uint32 MemorySetupPte(uint32 page) {
@@ -251,3 +276,7 @@ void MemoryFreePage(uint32 page) {
   nfreepages += 1;
   dbprintf('m', "Freed page 0x%x, %d remaining.\n", page, nfreepages);
 }
+
+void *malloc(PCB *pcb, int size) { return MEM_FAIL; }
+
+void *mfree(PCB *pcb, void *ptr) { return MEM_FAIL; }

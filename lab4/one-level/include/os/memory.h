@@ -21,10 +21,14 @@ int MemoryCopyUserToSystem(PCB *pcb, unsigned char *from, unsigned char *to,
                            int n);
 int MemoryPageFaultHandler(PCB *pcb);
 void MemoryFreePte(uint32 pte);
-static uint32 invert(uint32 n);
+
+static int negativeone = 0xFFFFFFFF;
+static uint32 invert(uint32 n) { return (n ^ negativeone); }
 //---------------------------------------------------------
 // Put your function prototypes here
 //---------------------------------------------------------
 // All function prototypes including the malloc and mfree functions go here
 
+void *malloc(PCB *pcb, int size);
+void *mfree(PCB *pcb, void *ptr);
 #endif  // _memory_h_

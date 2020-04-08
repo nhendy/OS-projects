@@ -35,5 +35,5 @@
 #define MEM_PTE_MASK (~(MEM_PTE_VALID | MEM_PTE_DIRTY | MEM_PTE_READONLY))
 #define MEM_ADDRESS_OFFSET_MASK (MEM_PAGE_SIZE - 1)
 
-#define ADDRESS_TO_PAGE (addr)((addr >> MEM_L1FIELD_FIRST_BITNUM))
+#define ADDRESS_TO_PAGE(addr) ((addr >> MEM_L1FIELD_FIRST_BITNUM))
 #endif  // _memory_constants_h_

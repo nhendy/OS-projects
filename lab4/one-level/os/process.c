@@ -63,7 +63,7 @@ uint32 get_argument(char *string);
 //
 //----------------------------------------------------------------------
 void ProcessModuleInit() {
-  int i;
+  int i, j;
 
   dbprintf('p', "Entering ProcessModuleInit\n");
   AQueueInit(&freepcbs);
@@ -84,9 +84,9 @@ void ProcessModuleInit() {
     //-------------------------------------------------------
     // STUDENT: Initialize the PCB's page table here.
     //-------------------------------------------------------
-    pcb[i].npages = 0;
+    pcbs[i].npages = 0;
     for (j = 0; j < ADDRESS_TO_PAGE(MAX_VIRTUAL_ADDRESS) + 1; ++j) {
-      pcb[i].pagetable[j] = 0;
+      pcbs[i].pagetable[j] = 0;
     }
 
     // Finally, insert the link into the queue
@@ -144,9 +144,9 @@ void ProcessFreeResources(PCB *pcb) {
   // STUDENT: Free any memory resources on process death here.
   //------------------------------------------------------------
   for (i = 0; i < pcb->npages; ++i) {
-    MemoryFreePte(pcb->pagetable[i])
+    MemoryFreePte(pcb->pagetable[i]);
   }
-  MemoryFreePage(ADDRESS_TO_PAGE(pcb->sysStackArea))
+  MemoryFreePage(ADDRESS_TO_PAGE(pcb->sysStackArea));
 
   ProcessSetStatus(pcb, PROCESS_STATUS_FREE);
 }
@@ -399,6 +399,7 @@ int ProcessFork(VoidFunc func, uint32 param, char *name, int isUser) {
                   // beginning of the string to the current argument.
   uint32 initial_user_params_bytes;  // total number of bytes in initial user
                                      // parameters array
+  uint32 new_page;
 
   intrs = DisableIntrs();
   dbprintf('I', "Old interrupt value was 0x%x.\n", intrs);
@@ -443,28 +444,28 @@ int ProcessFork(VoidFunc func, uint32 param, char *name, int isUser) {
 
   pcb->npages = 4;
   for (i = 0; i < 4; ++i) {
-    newPage = MemoryAllocPage();
-    if (newPage == 0) {
+    new_page = MemoryAllocPage();
+    if (new_page == 0) {
       printf("FATAL: couldn't allocate memory - no free pages!\n");
       exitsim();  // NEVER RETURNS!
     }
-    pcb->pagetable[i] = MemorySetupPte(newPage);
+    pcb->pagetable[i] = MemorySetupPte(new_page);
   }
 
   pcb->npages += 1;
-  newPage = MemoryAllocPage();
-  if (newPage == 0) {
+  new_page = MemoryAllocPage();
+  if (new_page == 0) {
     printf("bFATAL: couldn't allocate system stack - no free pages!\n");
     exitsim();  // NEVER RETURNS!
   }
 
   pcb->pagetable[ADDRESS_TO_PAGE(MAX_VIRTUAL_ADDRESS)] =
-      MemorySetupPte(newPage);
+      MemorySetupPte(new_page);
 
-  newPage = MemoryAllocPage();
-  pcb->sysStackArea = newPage * MEMORY_PAGE_SIZE;
+  new_page = MemoryAllocPage();
+  pcb->sysStackArea = new_page * MEM_PAGE_SIZE;
 
-  stackframe = (pcb->sysStackArea + MEMORY_PAGE_SIZE) & invert(0x3);
+  stackframe = (pcb->sysStackArea + MEM_PAGE_SIZE) & invert(0x3);
   // Now that the stack frame points at the bottom of the system stack memory
   // area, we need to
   // move it up (decrement it) by one stack frame size because we're about to
