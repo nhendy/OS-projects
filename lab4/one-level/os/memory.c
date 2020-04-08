@@ -13,10 +13,17 @@
 #include "queue.h"
 
 // num_pages = size_of_memory / size_of_one_page
-static uint32 freemap[/*size*/];
+static uint32 freemap[MEM_NUM_PAGES / 32];
 static uint32 pagestart;
 static int nfreepages;
 static int freemapmax;
+
+void MemorySetFreemap(int p, int b) {
+  uint32 wd = p / 32;
+  uint32 bitnum = p % 32;
+
+  freepages[wd] = (freepages[wd] & invert(1 << bitnum)) | (b << bitnum);
+}
 
 //----------------------------------------------------------------------
 //
@@ -29,7 +36,7 @@ static int freemapmax;
 //
 //----------------------------------------------------------------------
 static int negativeone = 0xFFFFFFFF;
-static inline uint32 invert(uint32 n) { return (n ^ negativeone); }
+static uint32 invert(uint32 n) { return (n ^ negativeone); }
 
 //----------------------------------------------------------------------
 //
@@ -51,7 +58,29 @@ int MemoryGetSize() { return (*((int *)DLX_MEMSIZE_ADDRESS)); }
 //      all the rest as not in use.
 //
 //----------------------------------------------------------------------
-void MemoryModuleInit() {}
+
+void MemoryModuleInit() {
+  int i;
+  int maxpage = MemoryGetSize() / MEMORY_PAGE_SIZE;
+  int curpage;
+
+  pagestart = (lastosaddress & 0xFFFFFFFC) / MEMORY_PAGE_SIZE;
+  freemapmax = (maxpage + 31) / 32;
+  dbprintf('m', "Map has %d entries, memory size is 0x%x.\n", freemapmax,
+           maxpage);
+  dbprintf('m', "Free pages start with page # 0x%x.\n", pagestart);
+  for (i = 0; i < freemapmax; i++) {
+    // Initially, all pages are considered in use.  This is done to make
+    // sure we don't have any partially initialized freemap entries.
+    freepages[i] = 0;
+  }
+  nfreepages = 0;
+  for (curpage = pagestart; curpage < maxpage; curpage++) {
+    nfreepages += 1;
+    MemorySetFreemap(curpage, 1);
+  }
+  dbprintf('m', "Initialized %d free pages.\n", nfreepages);
+}
 
 //----------------------------------------------------------------------
 //
@@ -61,7 +90,15 @@ void MemoryModuleInit() {}
 //	into an OS (physical) address.  Return the physical address.
 //
 //----------------------------------------------------------------------
-uint32 MemoryTranslateUserToSystem(PCB *pcb, uint32 addr) {}
+uint32 MemoryTranslateUserToSystem(PCB *pcb, uint32 addr) {
+  int page = addr / MEMORY_PAGE_SIZE;
+  int offset = addr % MEMORY_PAGE_SIZE;
+
+  if (page > pcb->npages) {
+    return (0);
+  }
+  return ((pcb->pagetable[page] & MEM_PTE_MASK) + offset);
+}
 
 //----------------------------------------------------------------------
 //
@@ -175,8 +212,42 @@ int MemoryPageFaultHandler(PCB *pcb) { return MEM_FAIL; }
 // Feel free to edit/remove them
 //---------------------------------------------------------------------
 
-int MemoryAllocPage(void) { return -1; }
+inline int MemoryAllocPage() {
+  static int mapnum = 0;
+  int bitnum;
+  uint32 v;
 
-uint32 MemorySetupPte(uint32 page) { return -1; }
+  if (nfreepages == 0) {
+    return (0);
+  }
+  dbprintf('m', "Allocating memory, starting with page %d\n", mapnum);
+  while (freepages[mapnum] == 0) {
+    mapnum += 1;
+    if (mapnum >= freemapmax) {
+      mapnum = 0;
+    }
+  }
+  v = freepages[mapnum];
+  for (bitnum = 0; (v & (1 << bitnum)) == 0; bitnum++) {
+  }
+  freepages[mapnum] &= invert(1 << bitnum);
+  v = (mapnum * 32) + bitnum;
+  dbprintf('m', "Allocated memory, from map %d, page %d, map=0x%x.\n", mapnum,
+           v, freepages[mapnum]);
+  nfreepages -= 1;
+  return (v);
+}
 
-void MemoryFreePage(uint32 page) {}
+void MemoryFreePte(uint32 pte) {
+  MemoryFreePage(ADDRESS_TO_PAGE((pte & MEMORY_PTE_MASK)));
+}
+
+uint32 MemorySetupPte(uint32 page) {
+  return ((page * MEM_PAGE_SIZE) | MEM_PTE_VALID);
+}
+
+void MemoryFreePage(uint32 page) {
+  MemorySetFreemap(page, 1);
+  nfreepages += 1;
+  dbprintf('m', "Freed page 0x%x, %d remaining.\n", page, nfreepages);
+}

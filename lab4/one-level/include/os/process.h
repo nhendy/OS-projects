@@ -40,10 +40,10 @@ typedef struct PCB {
   uint32 *sysStackPtr;        // Current system stack pointer.  MUST BE 2ND!
   uint32 sysStackArea;        // System stack area for this process
   unsigned int flags;
-  char name[80];  // Process name
-  uint32 pagetable[/* Put the size of the L1 page table here */];  // Statically
-                                                                   // allocated
-                                                                   // page table
+  char name[80];                              // Process name
+  uint32 pagetable[MAX_VIRTUAL_ADDRESS + 1];  // Statically
+                                              // allocated
+                                              // page table
   int npages;  // Number of pages allocated to this process
   Link *l;     // Used for keeping PCB in queues
 } PCB;
