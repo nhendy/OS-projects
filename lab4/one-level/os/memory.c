@@ -115,6 +115,8 @@ uint32 MemoryTranslateUserToSystem(PCB *pcb, uint32 addr) {
   dbprintf('m',
            "MemoryTranslateUserToSystem: addr: 0x%x, page: %d, offset 0x%x\n",
            addr, page, offset);
+  /* printf("0x%x, page: %d\n", MAX_VIRTUAL_ADDRESS - 4 * MEM_PAGE_SIZE,
+   * ADDRESS_TO_PAGE(MAX_VIRTUAL_ADDRESS - 4 * MEM_PAGE_SIZE)); */
   /* PrintSysStack(pcb); */
   if (pcb->pagetable[page] & MEM_PTE_VALID) {
     dbprintf('m', "Returning 0x%x\n",
@@ -248,12 +250,12 @@ int MemoryPageFaultHandler(PCB *pcb) {
   uint32 user_stack_ptr =
       pcb->currentSavedFrame[PROCESS_STACK_USER_STACKPOINTER];
   dbprintf('m', "MemoryPageFaultHandler\n");
+  printf("MemoryPageFaultHandler\n");
   // TODO: (nhendy) do we kill process if there are no available pages?
   if (accessed_addr >= user_stack_ptr) {
     return AddPageToProcessOrKill(pcb, ADDRESS_TO_PAGE(accessed_addr));
   } else {
-    dbprintf('m', "PID %d: Killing process due to segfault\n",
-             GetPidFromAddress(pcb));
+    printf("PID %d: Killing process due to segfault\n", GetPidFromAddress(pcb));
     ProcessKill();
   }
 
