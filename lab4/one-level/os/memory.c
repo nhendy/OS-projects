@@ -18,6 +18,13 @@ static uint32 pagestart;
 static int nfreepages;
 static int freemapmax;
 
+void PrintFreeMap() {
+  int i;
+  for (i = 0; i < sizeof(freemap) / sizeof(freemap[0]); ++i) {
+    printf("%d: 0x%x\n", i, freemap[i]);
+  }
+}
+
 void MemorySetFreemap(int p, int b) {
   uint32 wd = p / 32;
   uint32 bitnum = p % 32;
@@ -85,6 +92,15 @@ void MemoryModuleInit() {
   dbprintf('m', "Initialized %d free pages.\n", nfreepages);
 }
 
+void PrintSysStack(PCB *pcb) {
+  int i;
+  printf("savedFrame: 0x%x, sysStackPtr: 0x%x\n", pcb->currentSavedFrame,
+         pcb->sysStackPtr);
+  for (i = 0; i < sizeof(pcb->pagetable) / sizeof(pcb->pagetable[0]); ++i) {
+    printf("page %03d: 0x%x\n", i, pcb->pagetable[i]);
+  }
+}
+
 //----------------------------------------------------------------------
 //
 // MemoryTranslateUserToSystem
@@ -96,8 +112,10 @@ void MemoryModuleInit() {
 uint32 MemoryTranslateUserToSystem(PCB *pcb, uint32 addr) {
   int page = ADDRESS_TO_PAGE(addr);
   int offset = ADDRESS_TO_OFFSET(addr);
-  printf("MemoryTranslateUserToSystem: addr: 0x%x, page: %d, offset 0x%x\n",
-         addr, page, offset);
+  dbprintf('m',
+           "MemoryTranslateUserToSystem: addr: 0x%x, page: %d, offset 0x%x\n",
+           addr, page, offset);
+  /* PrintSysStack(pcb); */
   if (pcb->pagetable[page] & MEM_PTE_VALID) {
     dbprintf('m', "Returning 0x%x\n",
              ((pcb->pagetable[page] & MEM_PTE_MASK) | offset));

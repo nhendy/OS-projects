@@ -85,7 +85,6 @@ void ProcessModuleInit() {
     // STUDENT: Initialize the PCB's page table here.
     //-------------------------------------------------------
     pcbs[i].npages = 0;
-    printf("Number of pages %d\n", ADDRESS_TO_PAGE(MAX_VIRTUAL_ADDRESS) + 1);
     for (j = 0; j < (ADDRESS_TO_PAGE(MAX_VIRTUAL_ADDRESS) + 1); ++j) {
       pcbs[i].pagetable[j] = 0;
     }
@@ -465,10 +464,10 @@ int ProcessFork(VoidFunc func, uint32 param, char *name, int isUser) {
 
   new_page = MemoryAllocPage();
   pcb->sysStackArea = new_page * MEM_PAGE_SIZE;
-  printf("sysStackArea : 0x%x\n", pcb->sysStackArea);
+  dbprintf('m', "sysStackArea : 0x%x\n", pcb->sysStackArea);
   stackframe = (pcb->sysStackArea + MEM_PAGE_SIZE - 1) & invert(0x3);
-  printf("sysStackArea : 0x%x, page size: 0x%x, stackframe 0x%x\n",
-         pcb->sysStackArea + MEM_PAGE_SIZE, MEM_PAGE_SIZE, stackframe);
+  dbprintf('m', "sysStackArea : 0x%x, page size: 0x%x, stackframe 0x%x\n",
+           pcb->sysStackArea + MEM_PAGE_SIZE, MEM_PAGE_SIZE, stackframe);
   // Now that the stack frame points at the bottom of the system stack memory
   // area, we need to
   // move it up (decrement it) by one stack frame size because we're about to
@@ -502,7 +501,7 @@ int ProcessFork(VoidFunc func, uint32 param, char *name, int isUser) {
   // stack frame.
   //----------------------------------------------------------------------
   stackframe[PROCESS_STACK_PTBASE] = (uint32 *)&(pcb->pagetable[0]);
-  printf("Size of PT: %d\n", ADDRESS_TO_PAGE(MAX_VIRTUAL_ADDRESS) + 1);
+  dbprintf('m', "Size of PT: %d\n", ADDRESS_TO_PAGE(MAX_VIRTUAL_ADDRESS) + 1);
   stackframe[PROCESS_STACK_PTSIZE] = ADDRESS_TO_PAGE(MAX_VIRTUAL_ADDRESS) + 1;
   stackframe[PROCESS_STACK_PTBITS] =
       (MEM_L1FIELD_FIRST_BITNUM << 16) | MEM_L1FIELD_FIRST_BITNUM;
@@ -537,8 +536,8 @@ int ProcessFork(VoidFunc func, uint32 param, char *name, int isUser) {
     //----------------------------------------------------------------------
     stackframe[PROCESS_STACK_USER_STACKPOINTER] =
         MAX_VIRTUAL_ADDRESS & invert(0x3);
-    printf("User stack ptr: 0x%x\n",
-           stackframe[PROCESS_STACK_USER_STACKPOINTER]);
+    dbprintf('m', "User stack ptr: 0x%x\n",
+             stackframe[PROCESS_STACK_USER_STACKPOINTER]);
 
     //--------------------------------------------------------------------
     // This part is setting up the initial user stack with argc and argv.

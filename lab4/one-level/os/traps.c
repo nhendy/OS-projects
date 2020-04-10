@@ -217,7 +217,6 @@ static void TrapPrintfHandler(uint32 *trapArgs, int sysMode) {
                                                        // for "%s" into
   int string_argnum = 0;  // Keeps track of how many "%s"'s we have received
                           // (index into strings_storage)
-  printf("Sysmode :%d\n", sysMode);
 
   if (!sysMode) {
     // printf("trapArgs %c\n", trapArgs[0]);
@@ -230,7 +229,6 @@ static void TrapPrintfHandler(uint32 *trapArgs, int sysMode) {
       MemoryCopyUserToSystem(currentPCB, (char *)(userformatstr + i),
                              (char *)&(formatstr[i]), sizeof(char));
       // Check for end of string
-      printf(" %c", formatstr[i]);
       if (formatstr[i] == '\0') break;
     }
     if (i == PRINTF_MAX_FORMAT_LENGTH) {  // format string too long
@@ -446,7 +444,6 @@ void dointerrupt(unsigned int cause, unsigned int iar, unsigned int isr,
         // Call the trap printf handler and pass the arguments and a flag
         // indicating whether the trap was called from system mode.
         dbprintf('t', "Got a printf trap!\n");
-        printf("Printf Trap\n");
         TrapPrintfHandler(trapArgs, isr & DLX_STATUS_SYSMODE);
         break;
       case TRAP_OPEN:

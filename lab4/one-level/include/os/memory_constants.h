@@ -36,5 +36,5 @@
 #define MEM_ADDRESS_OFFSET_MASK (MEM_PAGE_SIZE - 1)
 
 #define ADDRESS_TO_PAGE(addr) ((addr >> MEM_L1FIELD_FIRST_BITNUM))
-#define ADDRESS_TO_OFFSET(addr) ((addr&& MEM_ADDRESS_OFFSET_MASK))
+#define ADDRESS_TO_OFFSET(addr) ((addr& MEM_ADDRESS_OFFSET_MASK))
 #endif  // _memory_constants_h_
