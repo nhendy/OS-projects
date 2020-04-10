@@ -14,7 +14,7 @@ void main(int argc, char *argv[]) {
   s_procs_completed = dstrtol(argv[1], NULL, 10);
 
   // Now print a message to show that everything worked
-  Printf("hello_world (%d): Hello world!\n", getpid());
+  Printf("hello_world (%d): \n", getpid());
 
   // Signal the semaphore to tell the original process that we're done
   if (sem_signal(s_procs_completed) != SYNC_SUCCESS) {

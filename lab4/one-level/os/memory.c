@@ -61,13 +61,17 @@ void MemoryModuleInit() {
   int i;
   int curpage;
   int maxpage = MemoryGetSize() / MEM_PAGE_SIZE;
-  ;
+  dbprintf('m', "MemoryModuleInit\n");
+  dbprintf('m', "max page: %d\n", maxpage);
+  dbprintf('m', "lasaddress: 0x%x , inverted: 0x%x\n", lastosaddress,
+           (lastosaddress & invert(0x3)));
 
-  pagestart = (lastosaddress & invert(0x3)) / MEM_PAGE_SIZE;
+  pagestart = ((lastosaddress & invert(0x3)) / MEM_PAGE_SIZE) + 1;
   freemapmax = (maxpage + 31) / 32;
-  dbprintf('m', "Map has %d entries, memory size is 0x%x.\n", freemapmax,
-           maxpage);
-  dbprintf('m', "Free pages start with page # 0x%x.\n", pagestart);
+  dbprintf('m', "Map has %d entries, memory size is 0x%x (%d).\n", freemapmax,
+           maxpage, maxpage);
+  dbprintf('m', "Free pages start with page # 0x%x (%d).\n", pagestart,
+           pagestart);
   for (i = 0; i < freemapmax; i++) {
     // Initially, all pages are considered in use.  This is done to make
     // sure we don't have any partially initialized freemap entries.
@@ -90,13 +94,17 @@ void MemoryModuleInit() {
 //
 //----------------------------------------------------------------------
 uint32 MemoryTranslateUserToSystem(PCB *pcb, uint32 addr) {
-  int page = addr / MEM_PAGE_SIZE;
-  int offset = addr % MEM_PAGE_SIZE;
-
-  if (page > pcb->npages) {
-    return (0);
+  int page = ADDRESS_TO_PAGE(addr);
+  int offset = ADDRESS_TO_OFFSET(addr);
+  printf("MemoryTranslateUserToSystem: addr: 0x%x, page: %d, offset 0x%x\n",
+         addr, page, offset);
+  if (pcb->pagetable[page] & MEM_PTE_VALID) {
+    dbprintf('m', "Returning 0x%x\n",
+             ((pcb->pagetable[page] & MEM_PTE_MASK) | offset));
+    return ((pcb->pagetable[page] & MEM_PTE_MASK) | offset);
   }
-  return ((pcb->pagetable[page] & MEM_PTE_MASK) + offset);
+  dbprintf('m', "MemoryTranslateUserToSystem: failed due to being invalid \n");
+  return MEM_FAIL;
 }
 
 //----------------------------------------------------------------------
@@ -131,7 +139,7 @@ int MemoryMoveBetweenSpaces(PCB *pcb, unsigned char *system,
     curUser = (unsigned char *)MemoryTranslateUserToSystem(pcb, (uint32)user);
 
     // If we could not translate address, exit now
-    if (curUser == (unsigned char *)0) break;
+    if (curUser == MEM_FAIL) break;
 
     // Calculate the number of bytes to copy this time.  If we have more bytes
     // to copy than there are left in the current page, we'll have to just copy
@@ -193,7 +201,8 @@ int AddPageToProcessOrKill(PCB *pcb, int page_idx) {
   uint32 new_page;
   new_page = MemoryAllocPage();
   if (new_page == 0) {
-    printf("PID %d. Could not allocate page in AddPageToProcess.\n");
+    dbprintf('m', "PID %d. Could not allocate page in AddPageToProcess.\n",
+             GetPidFromAddress(pcb));
     ProcessKill();
     return MEM_FAIL;
   }
@@ -220,11 +229,13 @@ int MemoryPageFaultHandler(PCB *pcb) {
   uint32 accessed_addr = pcb->currentSavedFrame[PROCESS_STACK_FAULT];
   uint32 user_stack_ptr =
       pcb->currentSavedFrame[PROCESS_STACK_USER_STACKPOINTER];
-
+  dbprintf('m', "MemoryPageFaultHandler\n");
   // TODO: (nhendy) do we kill process if there are no available pages?
   if (accessed_addr >= user_stack_ptr) {
     return AddPageToProcessOrKill(pcb, ADDRESS_TO_PAGE(accessed_addr));
   } else {
+    dbprintf('m', "PID %d: Killing process due to segfault\n",
+             GetPidFromAddress(pcb));
     ProcessKill();
   }
 
@@ -264,6 +275,8 @@ inline int MemoryAllocPage() {
 }
 
 void MemoryFreePte(uint32 pte) {
+  dbprintf('m', "Freeing Pte %d, addr: 0x%x, pte 0x%x. PID %d", pte,
+           ADDRESS_TO_PAGE((pte & MEM_PTE_MASK)), pte, GetCurrentPid());
   MemoryFreePage(ADDRESS_TO_PAGE((pte & MEM_PTE_MASK)));
 }
 
