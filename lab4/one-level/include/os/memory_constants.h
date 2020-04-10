@@ -20,4 +20,21 @@
 
 //--------------------------------------------------------
 
+// Page size is 4 KB = 2^12. So least significant 12 bits are page offset
+// and bit number 12 is the LSB for the page idx.
+#define MEM_L1FIELD_FIRST_BITNUM 12
+// 1024 KB
+#define MAX_VIRTUAL_ADDRESS 1024 * 1024 - 1
+// 2 MB
+#define MEM_MAX_SIZE 2 * 1024 * 1024
+#define MEM_PTE_READONLY 0x4
+#define MEM_PTE_DIRTY 0x2
+#define MEM_PTE_VALID 0x1
+#define MEM_NUM_PAGES (MEM_MAX_SIZE >> MEM_L1FIELD_FIRST_BITNUM)
+#define MEM_PAGE_SIZE (0x1 << MEM_L1FIELD_FIRST_BITNUM)
+#define MEM_PTE_MASK (~(MEM_PTE_VALID | MEM_PTE_DIRTY | MEM_PTE_READONLY))
+#define MEM_ADDRESS_OFFSET_MASK (MEM_PAGE_SIZE - 1)
+
+#define ADDRESS_TO_PAGE(addr) ((addr >> MEM_L1FIELD_FIRST_BITNUM))
+#define ADDRESS_TO_OFFSET(addr) ((addr& MEM_ADDRESS_OFFSET_MASK))
 #endif  // _memory_constants_h_

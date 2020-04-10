@@ -219,6 +219,7 @@ static void TrapPrintfHandler(uint32 *trapArgs, int sysMode) {
                           // (index into strings_storage)
 
   if (!sysMode) {
+    // printf("trapArgs %c\n", trapArgs[0]);
     // Copy user-space format string into kernel space
     // Argument 0: format string
     MemoryCopyUserToSystem(currentPCB, (char *)(trapArgs + 0),
