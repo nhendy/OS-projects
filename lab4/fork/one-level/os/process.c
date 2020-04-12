@@ -703,12 +703,13 @@ int ProcessRealFork(PCB *parent_pcb) {
   int intrs;
   uint32 l1_page;
   int i;
-  int max_virtual_page;
+  int max_physical_page;
   intrs = DisableIntrs();
-  if (AQueueEmpty(&freepcbs) == NULL) {
+  if (AQueueEmpty(&freepcbs)) {
     printf("FATAL ERROR: all processes are busy\n");
     exitsim();
   }
+  printf("Here %d\n", __LINE__);
   child_pcb = (PCB *)AQueueObject(AQueueFirst(&freepcbs));
   dbprintf('p', "child PCB 0x%x.\n", (int)child_pcb);
   if (AQueueRemove(&(child_pcb->l)) != QUEUE_SUCCESS) {
@@ -718,26 +719,33 @@ int ProcessRealFork(PCB *parent_pcb) {
     exitsim();
   }
 
+  printf("Here %d\n", __LINE__);
   ProcessSetStatus(child_pcb, PROCESS_STATUS_RUNNABLE);
 
   if (parent_pcb->npages == 4) {
     child_pcb->npages = parent_pcb->npages;
   }
 
+  printf("Here %d\n", __LINE__);
   for (i = 0; i < parent_pcb->npages; ++i) {
     parent_pcb->pagetable[i] |= MEM_PTE_READONLY;
-    MemoryReferenceCount((parent_pcb->pagetable[i] & MEM_PTE_MASK) / 32);
+    MemoryReferenceCount((parent_pcb->pagetable[i] & MEM_PTE_MASK) /
+                         MEM_PAGE_SIZE);
   }
+  printf("Here %d\n", __LINE__);
 
   parent_pcb->pagetable[ADDRESS_TO_PAGE(MAX_VIRTUAL_ADDRESS)] |=
       MEM_PTE_READONLY;
-  max_virtual_page =
+  max_physical_page =
       ((parent_pcb->pagetable[ADDRESS_TO_PAGE(MAX_VIRTUAL_ADDRESS)]) &
        MEM_PTE_MASK) /
-      32;
-  MemoryReferenceCount(MAX_VIRTUAL_ADDRESS);
+      MEM_PAGE_SIZE;
+  printf("Here %d\n", __LINE__);
+  MemoryReferenceCount(max_physical_page);
+  printf("Here %d\n", __LINE__);
 
   bcopy((char *)parent_pcb, (char *)child_pcb, sizeof(PCB));
+  printf("Here %d\n", __LINE__);
   RestoreIntrs(intrs);
 
   l1_page = MemoryAllocPage();
@@ -750,11 +758,13 @@ int ProcessRealFork(PCB *parent_pcb) {
   child_pcb->sysStackArea = l1_page * MEM_PAGE_SIZE;
   bcopy((char *)(parent_pcb->sysStackArea), (char *)(child_pcb->sysStackArea),
         MEM_PAGE_SIZE);
+  printf("Here %d\n", __LINE__);
   // Damini: check again, correct??
   stackframe = (child_pcb->sysStackArea + MEM_PAGE_SIZE - 1) & invert(0x3);
 
   // ProcessSchedule the first time.
   stackframe -= PROCESS_STACK_FRAME_SIZE;
+  printf("Here %d\n", __LINE__);
 
   // The system stack pointer is set to the base of the current interrupt stack
   // frame.
