@@ -514,7 +514,7 @@ int ProcessFork(VoidFunc func, uint32 param, char *name, int isUser) {
     exitsim();  // NEVER RETURNS!
   }
   pcb->pagetable[i] = MemorySetupPte(new_page);
-  pcb->heap[0] = (HeapNode) {0, new_page * MEM_PAGE_SIZE, 0};
+  pcb->heap[0] = (HeapNode) {0, (i) * MEM_PAGE_SIZE, 0};
   InitHeap(pcb);
 
   // User stack

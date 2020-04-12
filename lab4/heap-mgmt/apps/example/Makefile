@@ -5,6 +5,7 @@ default:
 	cd test_three; make
 	cd test_four; make
 	cd test_six; make
+	cd test_heap; make
 
 clean:
 	cd makeprocs; make clean
@@ -31,3 +32,6 @@ test_five: default
 
 test_six: default
 	cd ../../bin; dlxsim -x os.dlx.obj -a -u makeprocs.dlx.obj 30; ee469_fixterminal
+
+test_heap: default
+	cd ../../bin; dlxsim -x os.dlx.obj -a -u test_heap.dlx.obj; ee469_fixterminal

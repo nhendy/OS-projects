@@ -352,10 +352,13 @@ int HeapAllocateBlock(PCB *pcb, int order) {
 }
 
 void *malloc(PCB *pcb, int size) {
-  int order;
+  int order = 0;
   int node_idx;
+  if (pcb == NULL) return NULL;
+
   while (pow(2, order) * HEAP_BLOCK_SIZE < size) order++;
 
+  printf("Mallocing an order %d block. PID %d\n", order, GetCurrentPid());
   if ((node_idx = HeapAllocateBlock(pcb, order)) == MEM_FAIL) {
     printf("Failed to allocate a block\n");
     return NULL;
@@ -366,7 +369,13 @@ void *malloc(PCB *pcb, int size) {
       "block size = %d\n",
       pcb->heap[node_idx].order, pcb->heap[node_idx].start_address, size,
       HeapBlockSize(pcb->heap[node_idx].order));
-
+  printf(
+      "Created a heap block of size %d bytes: virtual address 0x%x, physical "
+      "address 0x%x.\n",
+      HeapBlockSize(pcb->heap[node_idx].order),
+      pcb->heap[node_idx].start_address,
+      MemoryTranslateUserToSystem(pcb, pcb->heap[node_idx].start_address));
+  pcb->heap[node_idx].allocated = 1;
   return (void *)pcb->heap[node_idx].start_address;
 }
 
@@ -387,9 +396,9 @@ void HeapMaybeCoalesceBuddies(PCB *pcb, int idx) {
   left_idx = GetHeapLeftChild(parent_idx, HEAP_NUM_NODES);
   if (pcb->heap[right_idx].allocated == 0 &&
       pcb->heap[left_idx].allocated == 0) {
-    left_address = pcb->heap[left_address].start_address;
-    right_address = pcb->heap[right_address].start_address;
-    child_order = pcb->heap[right_address].order;
+    left_address = pcb->heap[left_idx].start_address;
+    right_address = pcb->heap[right_idx].start_address;
+    child_order = pcb->heap[right_idx].order;
     printf(
         "Coalesced buddy nodes (order = %d, addr = %d, size = %d) & (order = "
         "%d, addr = %d, size = %d) into the parent node (order = %d, addr = "
@@ -413,12 +422,13 @@ void *mfree(PCB *pcb, void *ptr) {
   }
   if (i == HEAP_NUM_NODES) return MEM_FAIL;
 
+  printf("Freeing node %d\n", i);
   pcb->heap[i].allocated = 0;
   HeapMaybeCoalesceBuddies(pcb, i);
   printf(
-      "Freeing heap block of size %d bytes: virtual address %d, "
-      "physical address %d.\n",
+      "Freeing heap block of size %d bytes: virtual address 0x%x, "
+      "physical address 0x%x.\n",
       HeapBlockSize(pcb->heap[i].order), pcb->heap[i].start_address,
       MemoryTranslateUserToSystem(pcb, pcb->heap[i].start_address));
-  return MEM_FAIL;
+  return HeapBlockSize(pcb->heap[i].order);
 }
