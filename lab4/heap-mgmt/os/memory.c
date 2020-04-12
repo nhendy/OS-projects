@@ -115,9 +115,6 @@ uint32 MemoryTranslateUserToSystem(PCB *pcb, uint32 addr) {
   dbprintf('m',
            "MemoryTranslateUserToSystem: addr: 0x%x, page: %d, offset 0x%x\n",
            addr, page, offset);
-  /* printf("0x%x, page: %d\n", MAX_VIRTUAL_ADDRESS - 4 * MEM_PAGE_SIZE,
-   * ADDRESS_TO_PAGE(MAX_VIRTUAL_ADDRESS - 4 * MEM_PAGE_SIZE)); */
-  /* PrintSysStack(pcb); */
   if (pcb->pagetable[page] & MEM_PTE_VALID) {
     dbprintf('m', "Returning 0x%x\n",
              ((pcb->pagetable[page] & MEM_PTE_MASK) | offset));
@@ -310,6 +307,118 @@ void MemoryFreePage(uint32 page) {
   dbprintf('m', "Freed page 0x%x, %d remaining.\n", page, nfreepages);
 }
 
-void *malloc(PCB *pcb, int size) { return MEM_FAIL; }
+int HeapBlockSize(int order) { return pow(2, order) * HEAP_BLOCK_SIZE; }
 
-void *mfree(PCB *pcb, void *ptr) { return MEM_FAIL; }
+int HeapAllocateBlockUtil(PCB *pcb, int order, int idx) {
+  int result;
+  if (pcb->heap[idx].inuse == 1 || pcb->heap[idx].allocated == 1) {
+    return MEM_FAIL;
+  }
+  if (pcb->heap[idx].order == order && pcb->heap[idx].inuse == 0 &&
+      pcb->heap[idx].allocated == 0) {
+    return idx;
+  }
+  if (pcb->heap[idx].inuse == 0) {
+    printf(
+        "Created a left child node (order = %d, addr = %d, size = %d) of "
+        "parent (order = %d, addr %d, size = %d)\n",
+        pcb->heap[idx].order + 1,
+        pcb->heap[GetHeapLeftChild(idx, HEAP_NUM_NODES)].start_address,
+        HeapBlockSize(pcb->heap[idx].order + 1), pcb->heap[idx].order,
+        pcb->heap[idx].start_address, HeapBlockSize(pcb->heap[idx].order));
+  }
+  result =
+      HeapAllocateBlockUtil(pcb, order, GetHeapLeftChild(idx, HEAP_NUM_NODES));
+  if (result != MEM_FAIL) {
+    pcb->heap[idx].inuse = 1;
+    return result;
+  }
+  if (pcb->heap[idx].inuse == 0) {
+    printf(
+        "Created a right child node (order = %d, addr = %d, size = %d) of "
+        "parent (order = %d, addr %d, size = %d)\n",
+        pcb->heap[idx].order + 1,
+        pcb->heap[GetHeapRightChild(idx, HEAP_NUM_NODES)].start_address,
+        HeapBlockSize(pcb->heap[idx].order + 1), pcb->heap[idx].order,
+        pcb->heap[idx].start_address, HeapBlockSize(pcb->heap[idx].order));
+  }
+  pcb->heap[idx].inuse = 1;
+  return HeapAllocateBlockUtil(pcb, order,
+                               GetHeapRightChild(idx, HEAP_NUM_NODES));
+}
+
+int HeapAllocateBlock(PCB *pcb, int order) {
+  return HeapAllocateBlockUtil(pcb, order, 0);
+}
+
+void *malloc(PCB *pcb, int size) {
+  int order;
+  int node_idx;
+  while (pow(2, order) * HEAP_BLOCK_SIZE < size) order++;
+
+  if ((node_idx = HeapAllocateBlock(pcb, order)) == MEM_FAIL) {
+    printf("Failed to allocate a block\n");
+    return NULL;
+  }
+
+  printf(
+      "Allocated the block: order = %d, addr = %d, requested mem size = %d, "
+      "block size = %d\n",
+      pcb->heap[node_idx].order, pcb->heap[node_idx].start_address, size,
+      HeapBlockSize(pcb->heap[node_idx].order));
+
+  return (void *)pcb->heap[node_idx].start_address;
+}
+
+int SanityCheckHeapAddress(PCB *pcb, void *ptr) {
+  return ptr != NULL && ptr >= pcb->heap[0].start_address &&
+         ptr <= pcb->heap[HEAP_NUM_NODES - 1].start_address;
+}
+
+void HeapMaybeCoalesceBuddies(PCB *pcb, int idx) {
+  int parent_idx, right_idx, left_idx;
+  int left_address, right_address, child_order;
+  if (idx == 0) return;
+  if (pcb == NULL) return;
+  if (pcb->heap[idx].allocated == 1 || pcb->heap[idx].inuse == 1) return;
+
+  parent_idx = GetHeapParent(idx, HEAP_NUM_NODES);
+  right_idx = GetHeapRightChild(parent_idx, HEAP_NUM_NODES);
+  left_idx = GetHeapLeftChild(parent_idx, HEAP_NUM_NODES);
+  if (pcb->heap[right_idx].allocated == 0 &&
+      pcb->heap[left_idx].allocated == 0) {
+    left_address = pcb->heap[left_address].start_address;
+    right_address = pcb->heap[right_address].start_address;
+    child_order = pcb->heap[right_address].order;
+    printf(
+        "Coalesced buddy nodes (order = %d, addr = %d, size = %d) & (order = "
+        "%d, addr = %d, size = %d) into the parent node (order = %d, addr = "
+        "%d, size = %d)\n",
+        child_order, left_address, HeapBlockSize(child_order), child_order,
+        right_address, HeapBlockSize(child_order), pcb->heap[parent_idx].order,
+        pcb->heap[parent_idx].start_address,
+        HeapBlockSize(pcb->heap[parent_idx].order));
+    pcb->heap[parent_idx].inuse = 0;
+    HeapMaybeCoalesceBuddies(pcb, parent_idx);
+  }
+}
+
+void *mfree(PCB *pcb, void *ptr) {
+  int i;
+  if (!SanityCheckHeapAddress(pcb, ptr)) return MEM_FAIL;
+  for (i = 0; i < HEAP_NUM_NODES; ++i) {
+    if (pcb->heap[i].inuse == 0 && pcb->heap[i].allocated == 1 &&
+        pcb->heap[i].start_address == ptr)
+      break;
+  }
+  if (i == HEAP_NUM_NODES) return MEM_FAIL;
+
+  pcb->heap[i].allocated = 0;
+  HeapMaybeCoalesceBuddies(pcb, i);
+  printf(
+      "Freeing heap block of size %d bytes: virtual address %d, "
+      "physical address %d.\n",
+      HeapBlockSize(pcb->heap[i].order), pcb->heap[i].start_address,
+      MemoryTranslateUserToSystem(pcb, pcb->heap[i].start_address));
+  return MEM_FAIL;
+}

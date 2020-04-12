@@ -38,6 +38,7 @@ typedef struct {
   int order;
   uint32 start_address;
   int allocated;
+  int inuse;
 } HeapNode;
 
 // Process control block
@@ -109,9 +110,14 @@ void ProcessDestroy(PCB *pcb);
 extern unsigned GetCurrentPid();
 int GetPidFromAddress(PCB *pcb);
 void ProcessKill();
-
 //-------------------------------------------------------
 // Put any functions prototypes that you define here.
 //-------------------------------------------------------
+// Heap functions
+void InitHeap(PCB *pcb);
+double pow(double base, int exponent);
+int GetHeapParent(int idx, int heap_size);
+int GetHeapLeftChild(int idx, int heap_size);
+int GetHeapRightChild(int idx, int heap_size);
 
 #endif /* __process_h__ */

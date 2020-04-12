@@ -37,10 +37,12 @@
 
 #define NUM_HEAP_PAGES 1
 #define HEAP_BLOCK_SIZE 32
+// TODO: (nhendy) refactor later
+#define HEAP_MAX_DEPTH 7
 #define HEAP_MEM_SIZE NUM_HEAP_PAGES* MEM_PAGE_SIZE
-#define HEAP_NUM_BLOCKS (NUM_HEAP_PAGES* MEM_PAGE_SIZE) / HEAP_BLOCK_SIZE
+#define HEAP_MAX_NUM_BLOCKS (NUM_HEAP_PAGES* MEM_PAGE_SIZE) / HEAP_BLOCK_SIZE
 // Sum of geomtric series (r^n - 1)/(r-1) ; r =2, n = num_blocks * 2
-#define HEAP_NUM_NODES (HEAP_NUM_BLOCKS * 2 - 1)
+#define HEAP_NUM_NODES (HEAP_MAX_NUM_BLOCKS * 2 - 1)
 
 #define ADDRESS_TO_PAGE(addr) ((addr >> MEM_L1FIELD_FIRST_BITNUM))
 #define ADDRESS_TO_OFFSET(addr) ((addr& MEM_ADDRESS_OFFSET_MASK))

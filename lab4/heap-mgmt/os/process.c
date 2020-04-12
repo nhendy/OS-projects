@@ -53,15 +53,6 @@ int ProcessGetCodeInfo(const char *file, uint32 *startAddr, uint32 *codeStart,
 int ProcessGetFromFile(int fd, unsigned char *buf, uint32 *addr, int max);
 uint32 get_argument(char *string);
 
-//----------------------------------------------------------------------
-//
-//	ProcessModuleInit
-//
-//	Initialize the process module.  This involves initializing all
-//	of the process control blocks to appropriate values (ie, free
-//	and available).  We also need to initialize all of the queues.
-//
-//----------------------------------------------------------------------
 int GetHeapRightChild(int idx, int heap_size) {
   int child_idx = 2 * idx + 2;
   if (child_idx < heap_size) return child_idx;
@@ -91,12 +82,13 @@ double pow(double base, int exponent) {
 
 void InitHeapUtil(PCB *pcb, int idx, int depth, int heap_size, uint32 address) {
   if (idx >= 0 && idx < heap_size) {
-    pcb->heap[idx].order = depth;
+    pcb->heap[idx].order = HEAP_MAX_DEPTH - depth;
     pcb->heap[idx].start_address = address;
     pcb->heap[idx].allocated = 0;
+    pcb->heap[idx].inuse = 0;
     dbprintf('h',
              "Node idx : %d, order %d, address 0x%x (%d), HEAP_MEM_SIZE %d\n",
-             idx, depth, address, address, HEAP_MEM_SIZE);
+             idx, HEAP_MAX_DEPTH - depth, address, address, HEAP_MEM_SIZE);
     InitHeapUtil(pcb, GetHeapLeftChild(idx, heap_size), depth + 1, heap_size,
                  address);
     InitHeapUtil(pcb, GetHeapRightChild(idx, heap_size), depth + 1, heap_size,
@@ -109,6 +101,15 @@ void InitHeap(PCB *pcb) {
   InitHeapUtil(pcb, 0, 0, heap_size, pcb->heap[0].start_address);
 }
 
+//----------------------------------------------------------------------
+//
+//	ProcessModuleInit
+//
+//	Initialize the process module.  This involves initializing all
+//	of the process control blocks to appropriate values (ie, free
+//	and available).  We also need to initialize all of the queues.
+//
+//----------------------------------------------------------------------
 void ProcessModuleInit() {
   int i, j;
 
