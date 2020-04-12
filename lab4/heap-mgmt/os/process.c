@@ -94,10 +94,13 @@ void InitHeapUtil(PCB *pcb, int idx, int depth, int heap_size, uint32 address) {
     pcb->heap[idx].order = depth;
     pcb->heap[idx].start_address = address;
     pcb->heap[idx].allocated = 0;
+    dbprintf('h',
+             "Node idx : %d, order %d, address 0x%x (%d), HEAP_MEM_SIZE %d\n",
+             idx, depth, address, address, HEAP_MEM_SIZE);
     InitHeapUtil(pcb, GetHeapLeftChild(idx, heap_size), depth + 1, heap_size,
                  address);
     InitHeapUtil(pcb, GetHeapRightChild(idx, heap_size), depth + 1, heap_size,
-                 address + HEAP_MEM_SIZE / (int)pow(2, depth));
+                 address + HEAP_MEM_SIZE / (int)pow(2, depth + 1));
   }
 }
 
