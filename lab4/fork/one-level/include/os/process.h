@@ -107,5 +107,4 @@ void ProcessKill();
 // Put any functions prototypes that you define here.
 //-------------------------------------------------------
 int ProcessRealFork(PCB *pcb);
-void ForkTest(PCB *pcb);
 #endif /* __process_h__ */

@@ -709,7 +709,6 @@ int ProcessRealFork(PCB *parent_pcb) {
     printf("FATAL ERROR: all processes are busy\n");
     exitsim();
   }
-  printf("Here %d\n", __LINE__);
   child_pcb = (PCB *)AQueueObject(AQueueFirst(&freepcbs));
   dbprintf('p', "child PCB 0x%x.\n", (int)child_pcb);
   if (AQueueRemove(&(child_pcb->l)) != QUEUE_SUCCESS) {
@@ -719,20 +718,17 @@ int ProcessRealFork(PCB *parent_pcb) {
     exitsim();
   }
 
-  printf("Here %d\n", __LINE__);
   ProcessSetStatus(child_pcb, PROCESS_STATUS_RUNNABLE);
 
   if (parent_pcb->npages == 4) {
     child_pcb->npages = parent_pcb->npages;
   }
 
-  printf("Here %d\n", __LINE__);
   for (i = 0; i < parent_pcb->npages; ++i) {
     parent_pcb->pagetable[i] |= MEM_PTE_READONLY;
     MemoryReferenceCount((parent_pcb->pagetable[i] & MEM_PTE_MASK) /
                          MEM_PAGE_SIZE);
   }
-  printf("Here %d\n", __LINE__);
 
   parent_pcb->pagetable[ADDRESS_TO_PAGE(MAX_VIRTUAL_ADDRESS)] |=
       MEM_PTE_READONLY;
@@ -740,12 +736,9 @@ int ProcessRealFork(PCB *parent_pcb) {
       ((parent_pcb->pagetable[ADDRESS_TO_PAGE(MAX_VIRTUAL_ADDRESS)]) &
        MEM_PTE_MASK) /
       MEM_PAGE_SIZE;
-  printf("Here %d\n", __LINE__);
   MemoryReferenceCount(max_physical_page);
-  printf("Here %d\n", __LINE__);
 
   bcopy((char *)parent_pcb, (char *)child_pcb, sizeof(PCB));
-  printf("Here %d\n", __LINE__);
   RestoreIntrs(intrs);
 
   l1_page = MemoryAllocPage();
@@ -764,7 +757,6 @@ int ProcessRealFork(PCB *parent_pcb) {
 
   // ProcessSchedule the first time.
   stackframe -= PROCESS_STACK_FRAME_SIZE;
-  printf("Here %d\n", __LINE__);
 
   // The system stack pointer is set to the base of the current interrupt stack
   // frame.
@@ -791,30 +783,28 @@ int ProcessRealFork(PCB *parent_pcb) {
   ProcessSetResult(parent_pcb, GetPidFromAddress(parent_pcb));
 
   dbprintf('p', "Leaving ProcessRealFork (%s)\n", GetPidFromAddress(child_pcb));
-
-  // Return the process number (found by subtracting the PCB number
-  // from the base of the PCB array).
-  printf("FOr parent pid of %d\n", GetPidFromAddress(parent_pcb));
+  printf("Checking all valid PTEs for parent and child");
+  printf("For parent PID of %d\n\n", GetPidFromAddress(parent_pcb));
   ForkTest(parent_pcb);
-  printf("For Child pid of %d\n", GetPidFromAddress(child_pcb));
+  printf("For Child PID of %d\n\n", GetPidFromAddress(child_pcb));
   ForkTest(child_pcb);
 
   return PROCESS_SUCCESS;
 }
+
 void ForkTest(PCB *pcb) {
-  uint32 pte;
+  uint32 is_valid_pte;
   int k;
-  int page;
   printf("List of PTE with PID: %d \n", GetPidFromAddress(pcb));
   for (k = 0; k < MEM_PAGE_SIZE; k++) {
-    pte = pcb->pagetable[k];
-    page = ADDRESS_TO_PAGE(pte & MEM_PTE_MASK);
-    if (pte & MEM_PTE_VALID) {
-      printf("for k = %d, pte = 0x%x,  page =%d \n", k, pte, page);
+    is_valid_pte = pcb->pagetable[k] & MEM_PTE_VALID;
+    if (is_valid_pte) {
+      printf("k = %5d, PTE = 0x%x \n", k, pcb->pagetable[k]);
     }
   }
-  printf(" Succesfully printed all pageteable entries  of process %d\n",
-         GetPidFromAddress(pcb));
+  printf(
+      "\nSuccesfully printed all pageteable entries  of process with %d\n\n\n",
+      GetPidFromAddress(pcb));
 }
 
 //----------------------------------------------------------------------

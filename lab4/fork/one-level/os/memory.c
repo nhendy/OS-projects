@@ -277,20 +277,19 @@ void MemoryROPHandler(PCB *pcb) {
       pcb->currentSavedFrame[PROCESS_STACK_USER_STACKPOINTER];
   int page = ADDRESS_TO_PAGE((pcb->pagetable[ADDRESS_TO_PAGE(accessed_addr)]) &
                              MEM_PTE_MASK);
+  int new_page;
   // multiple process accessing this page
   if (reference[page] > 1) {
-    if (AddPageToProcessOrKill(pcb,
-                               ADDRESS_TO_PAGE(accessed_addr) == MEM_SUCCESS)) {
-      bcopy((char *)accessed_addr,
-            (char *)(pcb->pagetable[ADDRESS_TO_PAGE(accessed_addr)] *
-                     MEM_PAGE_SIZE),
-            MEM_PAGE_SIZE);
-      // pcb->pagetable[ADDRESS_TO_PAGE(accessed_addr)] &=
-      // invert(MEM_PTE_READONLY);
-      reference[page] -= 1;
-    }
+    new_page = MemoryAllocPage();
+    pcb->pagetable[ADDRESS_TO_PAGE(accessed_addr)] = MemorySetupPte(new_page);
+    bcopy((char *)accessed_addr, (char *)(new_page * MEM_PAGE_SIZE),
+          MEM_PAGE_SIZE);
+    pcb->pagetable[ADDRESS_TO_PAGE(accessed_addr)] &= invert(MEM_PTE_READONLY);
+    reference[page] -= 1;
+
+  } else {
+    pcb->pagetable[ADDRESS_TO_PAGE(accessed_addr)] &= invert(MEM_PTE_READONLY);
   }
-  pcb->pagetable[ADDRESS_TO_PAGE(accessed_addr)] &= invert(MEM_PTE_READONLY);
 }
 //---------------------------------------------------------------------
 // You may need to implement the following functions and access them from
