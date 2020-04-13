@@ -796,7 +796,7 @@ void ForkTest(PCB *pcb) {
   uint32 is_valid_pte;
   int k;
   printf("List of PTE with PID: %d \n", GetPidFromAddress(pcb));
-  for (k = 0; k < MEM_PAGE_SIZE; k++) {
+  for (k = 0; k < sizeof(pcb->pagetable) / sizeof(pcb->pagetable[0]); k++) {
     is_valid_pte = pcb->pagetable[k] & MEM_PTE_VALID;
     if (is_valid_pte) {
       printf("k = %5d, PTE = 0x%x \n", k, pcb->pagetable[k]);
