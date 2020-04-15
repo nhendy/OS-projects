@@ -4,6 +4,8 @@
 *.lst
 *.dlx
 *.depend
+*.aso
+*/*.o
 # General
 .DS_Store
 .AppleDouble
