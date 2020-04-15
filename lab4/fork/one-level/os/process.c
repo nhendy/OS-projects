@@ -730,28 +730,17 @@ int ProcessRealFork(PCB *parent_pcb) {
                          MEM_PAGE_SIZE);
   }
 
-  parent_pcb->pagetable[ADDRESS_TO_PAGE(MAX_VIRTUAL_ADDRESS)] |=
-      MEM_PTE_READONLY;
-  max_physical_page =
-      ((parent_pcb->pagetable[ADDRESS_TO_PAGE(MAX_VIRTUAL_ADDRESS)]) &
-       MEM_PTE_MASK) /
-      MEM_PAGE_SIZE;
-  MemoryReferenceCount(max_physical_page);
-
   bcopy((char *)parent_pcb, (char *)child_pcb, sizeof(PCB));
   RestoreIntrs(intrs);
 
   l1_page = MemoryAllocPage();
   if (l1_page == MEM_FAIL) {
     printf("FATAL: couldn't allocate memory - no free pages!\n");
-    // should you exit or kill process?
-    ProcessFreeResources(child_pcb);
     exitsim();  // NEVER RETURNS!
   }
   child_pcb->sysStackArea = l1_page * MEM_PAGE_SIZE;
   bcopy((char *)(parent_pcb->sysStackArea), (char *)(child_pcb->sysStackArea),
         MEM_PAGE_SIZE);
-  printf("Here %d\n", __LINE__);
   // Damini: check again, correct??
   stackframe = (child_pcb->sysStackArea + MEM_PAGE_SIZE - 1) & invert(0x3);
 
