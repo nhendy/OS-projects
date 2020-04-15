@@ -326,14 +326,6 @@ int HeapAllocateBlockUtil(PCB *pcb, int order, int idx) {
         pcb->heap[GetHeapLeftChild(idx, HEAP_NUM_NODES)].start_address,
         HeapBlockSize(pcb->heap[idx].order + 1), pcb->heap[idx].order,
         pcb->heap[idx].start_address, HeapBlockSize(pcb->heap[idx].order));
-  }
-  result =
-      HeapAllocateBlockUtil(pcb, order, GetHeapLeftChild(idx, HEAP_NUM_NODES));
-  if (result != MEM_FAIL) {
-    pcb->heap[idx].inuse = 1;
-    return result;
-  }
-  if (pcb->heap[idx].inuse == 0) {
     printf(
         "Created a right child node (order = %d, addr = %d, size = %d) of "
         "parent (order = %d, addr %d, size = %d)\n",
@@ -343,6 +335,12 @@ int HeapAllocateBlockUtil(PCB *pcb, int order, int idx) {
         pcb->heap[idx].start_address, HeapBlockSize(pcb->heap[idx].order));
   }
   pcb->heap[idx].inuse = 1;
+  result =
+      HeapAllocateBlockUtil(pcb, order, GetHeapLeftChild(idx, HEAP_NUM_NODES));
+  if (result != MEM_FAIL) {
+    pcb->heap[idx].inuse = 1;
+    return result;
+  }
   return HeapAllocateBlockUtil(pcb, order,
                                GetHeapRightChild(idx, HEAP_NUM_NODES));
 }
