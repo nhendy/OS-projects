@@ -442,8 +442,8 @@ int ProcessFork(VoidFunc func, uint32 param, char *name, int isUser) {
   // for the system stack.
   //---------------------------------------------------------
 
-  pcb->npages = 4;
   for (i = 0; i < 4; ++i) {
+    pcb->npages += 1;
     new_page = MemoryAllocPage();
     if (new_page == 0) {
       printf("FATAL: couldn't allocate memory - no free pages!\n");
