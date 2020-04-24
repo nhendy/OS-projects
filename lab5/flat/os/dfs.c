@@ -282,7 +282,7 @@ int DfsReadBlock(uint32 blocknum, dfs_block *b) {
   for (i = 0; i < disk_blocks_per_dfs_block; ++i) {
     DISK_DO_OR_DIE(DiskReadBlock(i + blocknum * disk_blocks_per_dfs_block, &db),
                    "Failed to read block from disk\n");
-    bcopy(db.data, &(dfs_b.data)[i * sizeof(disk_block)], sizeof(disk_block));
+    bcopy(db.data, &(dfs_b.data[i * sizeof(disk_block)]), sizeof(disk_block));
   }
 
   bcopy(&dfs_b, b, sizeof(dfs_block));
@@ -304,7 +304,7 @@ int DfsWriteBlock(uint32 blocknum, dfs_block *b) {
     return DFS_FAIL;
   }
   for (i = 0; i < disk_blocks_per_dfs_block; ++i) {
-    bcopy(&(b->data)[i * sizeof(disk_block)], db.data, sizeof(disk_block));
+    bcopy(&(b->data[i * sizeof(disk_block)]), db.data, sizeof(disk_block));
     DISK_DO_OR_DIE(
         DiskWriteBlock(i + blocknum * disk_blocks_per_dfs_block, &db),
         "Failed to read block from disk\n");

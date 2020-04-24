@@ -116,7 +116,7 @@ int FdiskWriteBlock(uint32 blocknum, dfs_block *b) {
   Printf("Writing %d physical disk blocks, dfs block num %d\n",
          disk_blocks_per_df_block, blocknum);
   for (i = 0; i < disk_blocks_per_df_block; ++i) {
-    bcopy(b, &db, sizeof(disk_block));
+    bcopy(&(b->data[i * sizeof(disk_block)]), &db, sizeof(disk_block));
     if (disk_write_block(blocknum * disk_blocks_per_df_block + i, &db.data) ==
         DISK_FAIL) {
       Printf("Failed to write physical disk block %i\n", i);
