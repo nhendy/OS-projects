@@ -9,7 +9,7 @@ typedef struct dfs_superblock {
   int dfs_start_block_inodes;
   int dfs_num_inodes;
   int dfs_start_block_fbv;
-  int dfs_start_data;
+  int dfs_start_block_data;
 } dfs_superblock;
 
 #define DFS_BLOCKSIZE 1024  // Must be an integer multiple of the disk blocksize
