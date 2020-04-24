@@ -6,13 +6,34 @@
 #include "dfs.h"
 #include "synch.h"
 
-// static dfs_inode inodes[/*specify size*/ ]; // all inodes
-// static dfs_superblock sb; // superblock
-// static uint32 fbv[/*specify size*/]; // Free block vector
+static dfs_inode inodes[DFS_INODE_MAX_NUM];  // all inodes
+static dfs_superblock sb;                    // superblock
+static uint32 fbv[DFS_FBV_MAX_NUM_WORDS];    // Free block vector
 
 static uint32 negativeone = 0xFFFFFFFF;
 static inline uint32 invert(uint32 n) { return n ^ negativeone; }
 
+#define DO_OR_DIE(result, death_val, death_message) \
+  do {                                              \
+    if (result == death_val) {                      \
+      printf(death_message);                        \
+      GracefulExit();                               \
+    }                                               \
+  } while (0)
+#define DO_OR_FAIL(result, death_val, death_message) \
+  do {                                               \
+    if (result == death_val) {                       \
+      printf(death_message);                         \
+      return death_val;                              \
+    }                                                \
+  } while (0)
+
+#define DISK_DO_OR_DIE(result, death_message) \
+  DO_OR_DIE(result, DISK_FAIL, death_message)
+#define DFS_DO_OR_DIE(result, death_message) \
+  DO_OR_DIE(result, DFS_FAIL, death_message)
+#define DFS_DO_OR_FAIL(result, death_message) \
+  DO_OR_FAIL(result, DFS_FAIL, death_message)
 // You have already been told about the most likely places where you should use
 // locks. You may use
 // additional locks if it is really necessary.
@@ -44,6 +65,17 @@ void DfsModuleInit() {
 void DfsInvalidate() {
   // This is just a one-line function which sets the valid bit of the
   // superblock to 0.
+  sb.valid = 0;
+}
+
+int DfsIsValid() { return sb.valid == 1; }
+
+void DumpSuperBlock() {
+  disk_block db;
+  bzero(db.data, sizeof(disk_block));
+  bcopy(&sb, db.data, sizeof(dfs_superblock));
+  DISK_DO_OR_DIE(DiskWriteBlock(1, &db),
+                 "Failed to write superblock to disk\n");
 }
 
 //-------------------------------------------------------------------
@@ -56,19 +88,52 @@ int DfsOpenFileSystem() {
   // Basic steps:
   // Check that filesystem is not already open
 
+  disk_block db;
+  dfs_block dfs_b;
+  int i;
+
+  if (DfsIsValid()) {
+    printf("File system  already open. Exiting..\n");
+    return DFS_FAIL;
+  }
   // Read superblock from disk.  Note this is using the disk read rather
   // than the DFS read function because the DFS read requires a valid
   // filesystem in memory already, and the filesystem cannot be valid
   // until we read the superblock. Also, we don't know the block size
   // until we read the superblock, either.
+  DISK_DO_OR_DIE(DiskReadBlock(1, &db),
+                 "DfsOpenFileSystem: Failed to read block 1 \n");
 
   // Copy the data from the block we just read into the superblock in memory
+  bcopy(db.data, &sb, sizeof(dfs_superblock));
+  if (!DfsIsValid()) {
+    printf("Filesystem still invalid. Exiting..\n");
+    return DFS_FAIL;
+  }
 
   // All other blocks are sized by virtual block size:
   // Read inodes
+  for (i = sb.dfs_start_block_inodes; i < sb.dfs_start_block_fbv; ++i) {
+    DFS_DO_OR_FAIL(DfsReadBlock(i, &dfs_b),
+                   "DfsOpenFileSystem: Failed to read DFS inode block\n");
+    bcopy(dfs_b.data,
+          ((char *)inodes)[sizeof(dfs_block) * (i - sb.dfs_start_block_inodes)],
+          sizeof(dfs_block));
+  }
   // Read free block vector
+  for (i = sb.dfs_start_block_fbv; i < sb.dfs_start_block_data; ++i) {
+    DFS_DO_OR_FAIL(DfsReadBlock(i, &dfs_b),
+                   "DfsOpenFileSystem: Failed to read DFS fbv block\n");
+    bcopy(dfs_b.data,
+          ((char *)fbv)[sizeof(dfs_block) * (i - sb.dfs_start_block_fbv)],
+          sizeof(dfs_block));
+  }
   // Change superblock to be invalid, write back to disk, then change
   // it back to be valid in memory
+  DfsInvalidate();
+  DumpSuperBlock();
+  sb.valid = 1;
+  return DFS_SUCCESS;
 }
 
 //-------------------------------------------------------------------
@@ -77,7 +142,32 @@ int DfsOpenFileSystem() {
 // version.
 //-------------------------------------------------------------------
 
-int DfsCloseFileSystem() {}
+int DfsCloseFileSystem() {
+  disk_block db;
+  dfs_block dfs_b;
+  int i;
+
+  if (!DfsIsValid()) {
+    printf("File system  already closed. Exiting..\n");
+    return DFS_FAIL;
+  }
+  for (i = sb.dfs_start_block_inodes; i < sb.dfs_start_block_fbv; ++i) {
+    bcopy(((char *)inodes)[sizeof(dfs_block) * (i - sb.dfs_start_block_inodes)],
+          dfs_b.data, sizeof(dfs_block));
+    DFS_DO_OR_FAIL(DfsWriteBlock(i, &dfs_b),
+                   "DfsOpenFileSystem: Failed to read DFS inode block\n");
+  }
+  for (i = sb.dfs_start_block_fbv; i < sb.dfs_start_block_data; ++i) {
+    bcopy(((char *)fbv)[sizeof(dfs_block) * (i - sb.dfs_start_block_fbv)],
+          dfs_b.data, sizeof(dfs_block));
+    DFS_DO_OR_FAIL(DfsWriteBlock(i, &dfs_b),
+                   "DfsOpenFileSystem: Failed to read DFS fbv block\n");
+  }
+
+  DumpSuperBlock();
+  DfsInvalidate();
+  return DFS_FAIL;
+}
 
 //-----------------------------------------------------------------
 // DfsAllocateBlock allocates a DFS block for use. Remember to use

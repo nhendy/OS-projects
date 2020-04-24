@@ -27,7 +27,7 @@ void initSuperBlock() {
   sb.dfs_start_block_inodes = DFS_INODE_START_BLOCK;
   sb.dfs_num_inodes = DFS_INODE_MAX_NUM;
   sb.dfs_start_block_fbv = DFS_FBV_START_BLOCK;
-  sb.dfs_start_data = DFS_DATA_START_BLOCK;
+  sb.dfs_start_block_data = DFS_DATA_START_BLOCK;
 }
 
 void SetFreeBlockVector(int block, int val) {
@@ -74,13 +74,13 @@ void main(int argc, char *argv[]) {
   // disk
   bzero(&fbv, sizeof(fbv) / sizeof(fbv[0]));
   Printf("Setting fbv\n");
-  for (i = sb.dfs_start_data; i < sb.dfs_num_blocks; ++i) {
+  for (i = sb.dfs_start_block_data; i < sb.dfs_num_blocks; ++i) {
     SetFreeBlockVector(i, 1);
   }
 
   Printf("Writing fbv from %d till %d. Size %d \n", sb.dfs_start_block_fbv,
-         sb.dfs_start_data, DFS_FBV_MAX_NUM_WORDS);
-  for (i = sb.dfs_start_block_fbv; i < sb.dfs_start_data; ++i) {
+         sb.dfs_start_block_data, DFS_FBV_MAX_NUM_WORDS);
+  for (i = sb.dfs_start_block_fbv; i < sb.dfs_start_block_data; ++i) {
     bcopy(&((char *)fbv)[sizeof(dfs_block) * (i - sb.dfs_start_block_fbv)],
           dfs_b.data, sizeof(dfs_block));
     WriteBlockOrDie(i, &dfs_b);
