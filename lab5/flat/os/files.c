@@ -8,6 +8,8 @@
 // You have already been told about the most likely places where you should use
 // locks. You may use
 // additional locks if it is really necessary.
+static file_descriptor fds[FILE_MAX_OPEN_FILES];
+static lock_t fd_lock;
 
 // STUDENT: put your file-level functions here
 uint32 FileOpen(char *filename, char *mode) { return 0; }

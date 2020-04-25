@@ -9,8 +9,19 @@
 
 #define FILE_MAX_READWRITE_BYTES 4096
 
+typedef enum {
+  READ,
+  WRITE,
+  READWRITE
+} Modes;
+
 typedef struct file_descriptor {
   // STUDENT: put file descriptor info here
+  char filename[FILE_MAX_FILENAME_LENGTH];
+  uint32 inode_handle;
+  uint32 cursor;
+  char eof;
+  char mode;
 } file_descriptor;
 
 #define FILE_FAIL -1
