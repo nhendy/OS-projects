@@ -16,26 +16,34 @@ static lock_t inode_lock;
 static uint32 negativeone = 0xFFFFFFFF;
 static inline uint32 invert(uint32 n) { return n ^ negativeone; }
 
-#define DO_OR_DIE(result, death_val, death_message) \
-  do {                                              \
-    if (result == death_val) {                      \
-      printf(death_message);                        \
-      GracefulExit();                               \
-    }                                               \
+#define DO_OR_DIE(result, death_val, death_format, args...) \
+  do {                                                      \
+    if (result == death_val) {                              \
+      printf(death_format, ##args);                         \
+      GracefulExit();                                       \
+    }                                                       \
   } while (0)
-#define DO_OR_FAIL(result, death_val, death_message) \
-  do {                                               \
-    if (result == death_val) {                       \
-      printf(death_message);                         \
-      return death_val;                              \
-    }                                                \
+#define DO_OR_FAIL(result, death_val, death_format, args...) \
+  do {                                                       \
+    if (result == death_val) {                               \
+      printf(death_format, ##args);                          \
+      return death_val;                                      \
+    }                                                        \
   } while (0)
-#define LOCK_OR_FAIL(locking_function, death_val, death_message) \
-  do {                                                           \
-    if (locking_function == SYNC_FAIL) {                         \
-      printf(death_message);                                     \
-      return death_val;                                          \
-    }                                                            \
+#define LOCK_OR_FAIL(locking_function, death_val, death_format, args...) \
+  do {                                                                   \
+    if (locking_function == SYNC_FAIL) {                                 \
+      printf(death_format, ##args);                                      \
+      return death_val;                                                  \
+    }                                                                    \
+  } while (0)
+
+#define CHECK_FS_VALID_OR_FAIL(format, args...) \
+  do {                                          \
+    if (!DfsIsValid()) {                        \
+      printf(format, ##args);                   \
+      return DFS_FAIL;                          \
+    }                                           \
   } while (0)
 
 #define DISK_DO_OR_DIE(result, death_message) \
@@ -60,6 +68,9 @@ static inline uint32 invert(uint32 n) { return n ^ negativeone; }
 ///////////////////////////////////////////////////////////////////
 
 int DfsIsValid() { return sb.valid == 1; }
+int DfsInodeIsValid(handle) {
+  return handle > 0 && handle < sizeof(inodes) / sizeof(inodes[0]);
+}
 
 void SetFreeBlockVector(int block, int val) {
   uint32 wd = block / 32;
@@ -179,10 +190,8 @@ int DfsCloseFileSystem() {
   dfs_block dfs_b;
   int i;
 
-  if (!DfsIsValid()) {
-    printf("File system  already closed. Exiting..\n");
-    return DFS_FAIL;
-  }
+  CHECK_FS_VALID_OR_FAIL("[%s, %d]: File system  already closed. Failing..\n",
+                         __FUNCTION__, __LINE__);
   for (i = sb.dfs_start_block_inodes; i < sb.dfs_start_block_fbv; ++i) {
     bcopy(
         &((char *)inodes)[sizeof(dfs_block) * (i - sb.dfs_start_block_inodes)],
@@ -214,10 +223,8 @@ uint32 DfsAllocateBlock() {
   //
   int i;
   int bitnum;
-  if (!DfsIsValid()) {
-    printf("DfsAllocateBlock: File system not valid. Exiting\n");
-    return DFS_FAIL;
-  }
+  CHECK_FS_VALID_OR_FAIL("[%s, %d]: File system  already closed. Failing..\n",
+                         __FUNCTION__, __LINE__);
   // Acquire lock
   LOCK_OR_FAIL(LockHandleAcquire(fbv_lock), DFS_FAIL,
                "Failed to acquire fbv_lock.\n");
@@ -252,9 +259,8 @@ uint32 DfsAllocateBlock() {
 
 int DfsFreeBlock(uint32 blocknum) {
 
-  if (!DfsIsValid()) {
-    printf("DfsAllocateBlock: File system not valid. Exiting\n");
-  }
+  CHECK_FS_VALID_OR_FAIL("[%s, %d]: File system  already closed. Failing..\n",
+                         __FUNCTION__, __LINE__);
   LOCK_OR_FAIL(LockHandleAcquire(fbv_lock), DFS_FAIL,
                "Failed to acquire fbv_lock.\n");
   SetFreeBlockVector(blocknum, BLOCK_TAKEN);
@@ -274,6 +280,8 @@ int DfsReadBlock(uint32 blocknum, dfs_block *b) {
   int i, disk_blocks_per_dfs_block = sb.dfs_block_size / DiskBytesPerBlock();
   dfs_block dfs_b;
   disk_block db;
+  CHECK_FS_VALID_OR_FAIL("[%s, %d]: File system  already closed. Failing..\n",
+                         __FUNCTION__, __LINE__);
   if (!IsBlockAllocated(blocknum)) {
     printf("Block %d is not allocated\n");
     return DFS_FAIL;
@@ -299,6 +307,8 @@ int DfsReadBlock(uint32 blocknum, dfs_block *b) {
 int DfsWriteBlock(uint32 blocknum, dfs_block *b) {
   int i, disk_blocks_per_dfs_block = sb.dfs_block_size / DiskBytesPerBlock();
   disk_block db;
+  CHECK_FS_VALID_OR_FAIL("[%s, %d]: File system  already closed. Failing..\n",
+                         __FUNCTION__, __LINE__);
   if (!IsBlockAllocated(blocknum)) {
     printf("Block %d is not allocated\n");
     return DFS_FAIL;
@@ -322,7 +332,19 @@ int DfsWriteBlock(uint32 blocknum, dfs_block *b) {
 // of the inode. If it is not found, return DFS_FAIL.
 //-----------------------------------------------------------------
 
-uint32 DfsInodeFilenameExists(char *filename) {}
+uint32 DfsInodeFilenameExists(char *filename) {
+  int i;
+
+  CHECK_FS_VALID_OR_FAIL("[%s, %d]: File system  already closed. Failing..\n",
+                         __FUNCTION__, __LINE__);
+  for (i = 0; i < sizeof(inodes) / sizeof(inodes[0]); ++i) {
+    if (inodes[i].inuse &&
+        dstrncmp(filename, inodes[i].filename, dstrlen(filename)) == 0) {
+      return i;
+    }
+  }
+  return DFS_FAIL;
+}
 
 //-----------------------------------------------------------------
 // DfsInodeOpen: search the list of all inuse inodes for the
@@ -332,7 +354,30 @@ uint32 DfsInodeFilenameExists(char *filename) {}
 // Remember to use locks whenever you allocate a new inode.
 //-----------------------------------------------------------------
 
-uint32 DfsInodeOpen(char *filename) {}
+uint32 DfsInodeOpen(char *filename) {
+  uint32 handle;
+  CHECK_FS_VALID_OR_FAIL("[%s, %d]: File system  already closed. Failing..\n",
+                         __FUNCTION__, __LINE__);
+  if ((handle = DfsInodeFilenameExists(filename)) != DFS_FAIL) return handle;
+
+  LOCK_OR_FAIL(LockHandleAcquire(inode_lock), DFS_FAIL,
+               "Failed to acquire inode_lock.\n");
+  for (handle = 0;
+       handle < sizeof(inodes) / sizeof(inodes[0]) && !inodes[handle].inuse;
+       ++handle)
+    ;
+  if (handle == sizeof(inodes) / sizeof(inodes[0])) {
+    LOCK_OR_FAIL(LockHandleRelease(inode_lock), DFS_FAIL,
+                 "Failed to release inode_lock.\n");
+    return DFS_FAIL;
+  }
+  bcopy(filename, inodes[handle].filename, DFS_INODE_MAX_FILENAME);
+  inodes[handle].inuse = 1;
+  inodes[handle].size = 0;
+  LOCK_OR_FAIL(LockHandleRelease(inode_lock), DFS_FAIL,
+               "Failed to release inode_lock.\n");
+  return handle;
+}
 
 //-----------------------------------------------------------------
 // DfsInodeDelete de-allocates any data blocks used by this inode,
@@ -342,7 +387,41 @@ uint32 DfsInodeOpen(char *filename) {}
 // DFS_SUCCESS on success.
 //-----------------------------------------------------------------
 
-int DfsInodeDelete(uint32 handle) {}
+int DfsInodeDelete(uint32 handle) {
+  int i;
+  dfs_block dfs_b;
+  CHECK_FS_VALID_OR_FAIL("[%s, %d]: File system  already closed. Failing..\n",
+                         __FUNCTION__, __LINE__);
+  if (!DfsInodeIsValid(handle)) return DFS_FAIL;
+
+  if (!inodes[handle].inuse) {
+    printf("The inode is not inuse\n");
+    return DFS_FAIL;
+  }
+  LOCK_OR_FAIL(LockHandleAcquire(inode_lock), DFS_FAIL,
+               "Failed to acquire inode_lock.\n");
+  // Free virtual blocks
+  for (i = 0; i < sizeof(inodes[handle].virtual_blocks) /
+                      sizeof(inodes[handle].virtual_blocks[0]);
+       ++i) {
+    DFS_DO_OR_FAIL(DfsFreeBlock(inodes[handle].virtual_blocks[i]),
+                   "Failed to free block\n");
+  }
+  // Read block containing indirect blocks
+  DFS_DO_OR_FAIL(DfsReadBlock(inodes[handle].indirect_block, &dfs_b),
+                 "Failed to read indirect block\n");
+  // Free indirect blocks
+  for (i = 0; i < sizeof(dfs_block) / sizeof(block_idx_t); ++i) {
+    // Read sizeof(block_idx_t) at a time
+    DFS_DO_OR_FAIL(DfsFreeBlock(((block_idx_t *)dfs_b.data)[i]),
+                   "Failed to free block\n");
+  }
+  // Zero out inode
+  bzero(&inodes[handle], sizeof(dfs_inode));
+  LOCK_OR_FAIL(LockHandleRelease(inode_lock), DFS_FAIL,
+               "Failed to release inode_lock.\n");
+  return DFS_FAIL;
+}
 
 //-----------------------------------------------------------------
 // DfsInodeReadBytes reads num_bytes from the file represented by
@@ -372,7 +451,11 @@ int DfsInodeWriteBytes(uint32 handle, void *mem, int start_byte,
 // been written to the inode thus far. Return DFS_FAIL on failure.
 //-----------------------------------------------------------------
 
-uint32 DfsInodeFilesize(uint32 handle) {}
+uint32 DfsInodeFilesize(uint32 handle) {
+  if (!DfsInodeIsValid(handle)) return DFS_FAIL;
+  if (!inodes[handle].inuse) return DFS_FAIL;
+  return inodes[handle].size;
+}
 
 //-----------------------------------------------------------------
 // DfsInodeAllocateVirtualBlock allocates a new filesystem block
@@ -393,4 +476,22 @@ uint32 DfsInodeAllocateVirtualBlock(uint32 handle, uint32 virtual_blocknum) {}
 //-----------------------------------------------------------------
 
 uint32 DfsInodeTranslateVirtualToFilesys(uint32 handle,
-                                         uint32 virtual_blocknum) {}
+                                         uint32 virtual_blocknum) {
+  dfs_block dfs_b;
+  if (!DfsInodeIsValid(handle)) return DFS_FAIL;
+  if (!inodes[handle].inuse) return DFS_FAIL;
+  if (virtual_blocknum >=
+      NUM_VIRTUAL_BLOCKS + sizeof(dfs_block) / sizeof(block_idx_t))
+    return DFS_FAIL;
+
+  // If it's a direct virtual block
+  if (virtual_blocknum < NUM_VIRTUAL_BLOCKS) {
+    return inodes[handle].virtual_blocks[virtual_blocknum];
+  }
+  // If indirect block is not allocated then fail
+  if (inodes[handle].indirect_block == 0) return DFS_FAIL;
+  // Read block containing indirect blocks
+  DFS_DO_OR_FAIL(DfsReadBlock(inodes[handle].indirect_block, &dfs_b),
+                 "Failed to read indirect block\n");
+  return ((block_idx_t *)dfs_b.data)[virtual_blocknum - NUM_VIRTUAL_BLOCKS];
+}

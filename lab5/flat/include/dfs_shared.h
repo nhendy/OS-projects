@@ -1,6 +1,11 @@
 #ifndef __DFS_SHARED__
 #define __DFS_SHARED__
 
+// Aliasing types for inode variables
+typedef uint32 block_idx_t;
+typedef char inuse_t;
+typedef uint32 filesize_t;
+
 typedef struct dfs_superblock {
   // STUDENT: put superblock internals here
   int valid;
@@ -19,7 +24,10 @@ typedef struct dfs_block {
 } dfs_block;
 
 #define DFS_INODE_MAX_SIZE 96
-#define DFS_INODE_MAX_FILENAME 96 - (4 + 4 + 10 * 4 + 4)
+#define DFS_INODE_MAX_FILENAME                                            \
+  96 - (sizeof(inuse_t) + sizeof(filesize_t) + 10 * sizeof(block_idx_t) + \
+        sizeof(block_idx_t))
+#define NUM_VIRTUAL_BLOCKS 10
 typedef struct dfs_inode {
   // STUDENT: put inode structure internals here
   // IMPORTANT: sizeof(dfs_inode) MUST return 128 in order to fit in enough
@@ -27,11 +35,11 @@ typedef struct dfs_inode {
   // adjust the maximumm length of the filename until the size of the overall
   // inode
   // is 128 bytes.
-  int inuse;
-  uint32 size;
+  inuse_t inuse;
+  filesize_t size;
   char filename[DFS_INODE_MAX_FILENAME];
-  int virtual_blocks[10];
-  int indirect_block;
+  block_idx_t virtual_blocks[NUM_VIRTUAL_BLOCKS];
+  block_idx_t indirect_block;
 
 } dfs_inode;
 
