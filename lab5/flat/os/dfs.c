@@ -50,8 +50,8 @@ static inline uint32 invert(uint32 n) { return n ^ negativeone; }
   DO_OR_DIE(result, DISK_FAIL, death_message)
 #define DFS_DO_OR_DIE(result, death_message) \
   DO_OR_DIE(result, DFS_FAIL, death_message)
-#define DFS_DO_OR_FAIL(result, death_message) \
-  DO_OR_FAIL(result, DFS_FAIL, death_message)
+#define DFS_DO_OR_FAIL(result, death_format, args...) \
+  DO_OR_FAIL(result, DFS_FAIL, death_format, ##args)
 
 #define BLOCK_AVAILABLE 1
 #define BLOCK_TAKEN 0
@@ -186,7 +186,6 @@ int DfsOpenFileSystem() {
 //-------------------------------------------------------------------
 
 int DfsCloseFileSystem() {
-  disk_block db;
   dfs_block dfs_b;
   int i;
 
@@ -431,6 +430,35 @@ int DfsInodeDelete(uint32 handle) {
 //-----------------------------------------------------------------
 
 int DfsInodeReadBytes(uint32 handle, void *mem, int start_byte, int num_bytes) {
+  dfs_block dfs_b;
+  block_idx_t virtual_block;
+  int cursor = start_byte;
+  int eof = start_byte + num_bytes;
+
+  CHECK_FS_VALID_OR_FAIL("[%s, %d]: File system  already closed. Failing..\n",
+                         __FUNCTION__, __LINE__);
+  if (!DfsInodeIsValid(handle)) return DFS_FAIL;
+  if (!inodes[handle].inuse) return DFS_FAIL;
+  // TODO: (nhendy) > or >=
+  if (eof >= DFS_MAX_FILESYSTEM_SIZE) return DFS_FAIL;
+
+  while (cursor < eof) {
+    if ((virtual_block =
+             DfsInodeTranslateVirtualToFilesys(
+                 handle, start_byte / sb.dfs_block_size) == DFS_FAIL)) {
+      printf("[%s, %d]: Failed to translate block\n", __FUNCTION__, __LINE__);
+      return DFS_FAIL;
+    }
+
+    DFS_DO_OR_FAIL(DfsReadBlock(virtual_block, &dfs_b),
+                   "Failed to read virtual block\n");
+    // TODO: (nhendy) needs testing
+    bcopy(dfs_b.data + cursor % sb.dfs_block_size,
+          ((char *)mem)[cursor - start_byte],
+          min(eof - cursor, sb.dfs_block_size - cursor % sb.dfs_block_size));
+    cursor += min(eof - cursor, sb.dfs_block_size - cursor % sb.dfs_block_size);
+  }
+  return cursor - start_byte;
 }
 
 //-----------------------------------------------------------------
@@ -443,7 +471,43 @@ int DfsInodeReadBytes(uint32 handle, void *mem, int start_byte, int num_bytes) {
 //-----------------------------------------------------------------
 
 int DfsInodeWriteBytes(uint32 handle, void *mem, int start_byte,
-                       int num_bytes) {}
+                       int num_bytes) {
+  dfs_block dfs_b;
+  block_idx_t virtual_block;
+  int cursor = start_byte;
+  int eof = start_byte + num_bytes;
+  CHECK_FS_VALID_OR_FAIL("[%s, %d]: File system  already closed. Failing..\n",
+                         __FUNCTION__, __LINE__);
+
+  if (!DfsInodeIsValid(handle)) return DFS_FAIL;
+  if (!inodes[handle].inuse) return DFS_FAIL;
+  // TODO: (nhendy) > or >=
+  if (eof >= DFS_MAX_FILESYSTEM_SIZE) return DFS_FAIL;
+
+  while (cursor < eof) {
+    if ((virtual_block =
+             DfsInodeTranslateVirtualToFilesys(
+                 handle, start_byte / sb.dfs_block_size) == DFS_FAIL)) {
+      printf("[%s, %d]: Failed to translate block. Allocating instead\n",
+             __FUNCTION__, __LINE__);
+      DFS_DO_OR_FAIL((virtual_block = DfsAllocateBlock()),
+                     "[%s, %d]: Failed to allocate a block", __FUNCTION__,
+                     __LINE__);
+    }
+    DFS_DO_OR_FAIL(DfsReadBlock(virtual_block, &dfs_b),
+                   "Failed to read virtual block\n");
+
+    // TODO: (nhendy) needs testing
+    bcopy(((char *)mem)[cursor - start_byte],
+          dfs_b.data + cursor % sb.dfs_block_size,
+          min(eof - cursor, sb.dfs_block_size - cursor % sb.dfs_block_size));
+    cursor += min(eof - cursor, sb.dfs_block_size - cursor % sb.dfs_block_size);
+
+    DFS_DO_OR_FAIL(DfsWriteBlock(virtual_block, &dfs_b),
+                   "Failed to write virtual block\n");
+  }
+  return cursor - start_byte;
+}
 
 //-----------------------------------------------------------------
 // DfsInodeFilesize simply returns the size of an inode's file.
@@ -467,7 +531,33 @@ uint32 DfsInodeFilesize(uint32 handle) {
 // block number on success.
 //-----------------------------------------------------------------
 
-uint32 DfsInodeAllocateVirtualBlock(uint32 handle, uint32 virtual_blocknum) {}
+uint32 DfsInodeAllocateVirtualBlock(uint32 handle, uint32 virtual_blocknum) {
+  dfs_block dfs_b;
+  if (!DfsInodeIsValid(handle)) return DFS_FAIL;
+  if (!inodes[handle].inuse) return DFS_FAIL;
+  if (virtual_blocknum >=
+      NUM_VIRTUAL_BLOCKS + sizeof(dfs_block) / sizeof(block_idx_t))
+    return DFS_FAIL;
+  if (virtual_blocknum < NUM_VIRTUAL_BLOCKS) {
+    if (inodes[handle].virtual_blocks[virtual_blocknum] != 0)
+      return inodes[handle].virtual_blocks[virtual_blocknum];
+    return (inodes[handle].virtual_blocks[virtual_blocknum] =
+                DfsAllocateBlock());
+  }
+
+  if (inodes[handle].indirect_block == 0) {
+    inodes[handle].indirect_block = DfsAllocateBlock();
+    bzero(&dfs_b, sizeof(dfs_block));
+  } else {
+    DFS_DO_OR_FAIL(DfsReadBlock(inodes[handle].indirect_block, &dfs_b),
+                   "Failed to read indirect block\n");
+  }
+  ((block_idx_t *)dfs_b.data)[virtual_blocknum - NUM_VIRTUAL_BLOCKS] =
+      DfsAllocateBlock();
+  DFS_DO_OR_FAIL(DfsWriteBlock(inodes[handle].indirect_block, &dfs_b),
+                 "DfsOpenFileSystem: Failed to read DFS inode block\n");
+  return ((block_idx_t *)dfs_b.data)[virtual_blocknum - NUM_VIRTUAL_BLOCKS];
+}
 
 //-----------------------------------------------------------------
 // DfsInodeTranslateVirtualToFilesys translates the
@@ -479,7 +569,6 @@ uint32 DfsInodeTranslateVirtualToFilesys(uint32 handle,
                                          uint32 virtual_blocknum) {
   dfs_block dfs_b;
   if (!DfsInodeIsValid(handle)) return DFS_FAIL;
-  if (!inodes[handle].inuse) return DFS_FAIL;
   if (virtual_blocknum >=
       NUM_VIRTUAL_BLOCKS + sizeof(dfs_block) / sizeof(block_idx_t))
     return DFS_FAIL;
