@@ -506,6 +506,7 @@ int DfsInodeWriteBytes(uint32 handle, void *mem, int start_byte,
     DFS_DO_OR_FAIL(DfsWriteBlock(virtual_block, &dfs_b),
                    "Failed to write virtual block\n");
   }
+  inodes[handle].size += cursor - start_byte;
   return cursor - start_byte;
 }
 
