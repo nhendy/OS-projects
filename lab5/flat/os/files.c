@@ -32,7 +32,8 @@ int FileDescFilenameExists(char *name) {
   while (dstrncmp(fds[i].filename, name, dstrlen(name)) != 0 &&
          i < FILE_MAX_OPEN_FILES)
     i++;
-  return i < FILE_MAX_OPEN_FILES;
+  if (i >= FILE_MAX_OPEN_FILES) return FILE_FAIL;
+  return i;
 }
 
 uint32 FileAllocateDescriptor(char *filename) {
@@ -40,7 +41,7 @@ uint32 FileAllocateDescriptor(char *filename) {
 
   LOCK_OR_FAIL(LockHandleAcquire(fd_lock), FILE_FAIL,
                "Failed to acquire fd_lock.\n");
-  if (FileDescFilenameExists(filename)) {
+  if (FileDescFilenameExists(filename) != FILE_FAIL) {
     LOCK_OR_FAIL(LockHandleRelease(fd_lock), FILE_FAIL,
                  "Failed to release fd_lock\n");
     return FILE_FAIL;
@@ -100,8 +101,95 @@ uint32 FileOpen(char *filename, char *mode) {
   return FILE_SUCCESS;
 }
 
-int FileClose(int handle) { return -1; }
-int FileRead(int handle, void *mem, int num_bytes) { return -1; }
-int FileWrite(int handle, void *mem, int num_bytes) { return -1; }
-int FileSeek(int handle, int num_bytes, int from_where) { return -1; }
-int FileDelete(char *filename) { return -1; }
+int IsValidHandle(int handle) {
+  return handle > 0 && handle < FILE_MAX_OPEN_FILES;
+}
+
+int FileClose(int handle) {
+  if (!IsValidHandle(handle)) return FILE_FAIL;
+  if (fds[handle].inuse == 0) return FILE_FAIL;
+  fds[handle].inuse = 1;
+  return FILE_SUCCESS;
+}
+
+int FileRead(int handle, void *mem, int num_bytes) {
+  file_descriptor *fd;
+  uint32 bytes_to_read;
+  if (!IsValidHandle(handle)) return FILE_FAIL;
+  if (fds[handle].inuse == 0) return FILE_FAIL;
+  // To simplify code later.
+  fd = &(fds[handle]);
+  // Check pid, mode and eof
+  if (fd->pid != GetCurrentPid()) return FILE_FAIL;
+  if (fd->mode == WRITE) return FILE_FAIL;
+  if (fd->eof) return FILE_EOF;
+  // Clamp num bytes to read at filesize
+  bytes_to_read = min(fd->cursor + num_bytes,
+                      DfsInodeFilesize(fd->inode_handle) - fd->cursor);
+  // Read
+  DfsInodeReadBytes(fd->inode_handle, mem, fd->cursor, bytes_to_read);
+  // Update cursor
+  fd->cursor += bytes_to_read;
+  // Update eof
+  if (fd->cursor == DfsInodeFilesize(fd->inode_handle)) {
+    fd->eof = 1;
+    return FILE_EOF;
+  }
+  return bytes_to_read;
+}
+
+int FileWrite(int handle, void *mem, int num_bytes) {
+  file_descriptor *fd;
+  uint32 bytes_to_write;
+  if (!IsValidHandle(handle)) return FILE_FAIL;
+  if (fds[handle].inuse == 0) return FILE_FAIL;
+  // To simplify code later.
+  fd = &(fds[handle]);
+  // Check pid, mode and eof
+  if (fd->pid != GetCurrentPid()) return FILE_FAIL;
+  if (fd->mode == READ) return FILE_FAIL;
+  if (fd->eof) return FILE_EOF;
+  // Clamp num bytes to read at filesize
+  bytes_to_write = min(fd->cursor + num_bytes,
+                       DfsInodeFilesize(fd->inode_handle) - fd->cursor);
+  DfsInodeWriteBytes(fd->inode_handle, mem, fd->cursor, bytes_to_write);
+  // Update cursor
+  fd->cursor += bytes_to_write;
+  // Update eof
+  if (fd->cursor == DfsInodeFilesize(fd->inode_handle)) {
+    fd->eof = 1;
+    return FILE_EOF;
+  }
+  return bytes_to_write;
+}
+int FileSeek(int handle, int num_bytes, int from_where) {
+  file_descriptor *fd;
+  if (!IsValidHandle(handle)) return FILE_FAIL;
+  if (fds[handle].inuse == 0) return FILE_FAIL;
+  // To simplify code later.
+  fd = &(fds[handle]);
+  switch (from_where) {
+    case FILE_SEEK_SET:
+      fd->cursor = num_bytes;
+      break;
+    case FILE_SEEK_END:
+      fd->cursor = DfsInodeFilesize(fd->inode_handle) + num_bytes;
+      break;
+    case FILE_SEEK_CUR:
+      fd->cursor += num_bytes;
+      break;
+    default:
+      return FILE_FAIL;
+  }
+  fd->eof = 0;
+  return FILE_SUCCESS;
+}
+
+int FileDelete(char *filename) {
+  uint32 handle;
+  if ((handle = DfsInodeFilenameExists(filename)) == DFS_FAIL) return FILE_FAIL;
+  DfsInodeDelete(handle);
+  if ((handle = FileDescFilenameExists(filename)) != FILE_FAIL)
+    fds[handle].inuse = 0;
+  return FILE_SUCCESS;
+}
