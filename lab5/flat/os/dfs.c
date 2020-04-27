@@ -143,8 +143,12 @@ int DfsOpenFileSystem() {
   // filesystem in memory already, and the filesystem cannot be valid
   // until we read the superblock. Also, we don't know the block size
   // until we read the superblock, either.
-  DISK_DO_OR_DIE(DiskReadBlock(1, &db),
-                 "DfsOpenFileSystem: Failed to read block 1 \n");
+  if (DiskReadBlock(1, &db) == DISK_FAIL) {
+    DISK_DO_OR_DIE(DiskCreate(),
+                   "DfsOpenFileSystem: Failed to create disk  \n");
+    DISK_DO_OR_DIE(DiskReadBlock(1, &db),
+                   "DfsOpenFileSystem: Failed to read block 1 \n");
+  }
 
   // Copy the data from the block we just read into the superblock in memory
   bcopy(db.data, &sb, sizeof(dfs_superblock));
