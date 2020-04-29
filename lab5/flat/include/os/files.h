@@ -6,6 +6,7 @@
 
 #define FILE_MAX_OPEN_FILES 15
 
+void FileModuleInit();
 uint32 FileOpen(char *filename, char *mode);
 int FileClose(int handle);
 int FileRead(int handle, void *mem, int num_bytes);

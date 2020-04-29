@@ -6,7 +6,6 @@
 //
 
 #include "misc.h"
-
 //----------------------------------------------------------------------
 //
 //	dstrcpy
@@ -53,7 +52,6 @@ char *dstrcat(char *onto, const char *addn) {
 
 int dstrncmp(const char *s1, const char *s2, int n) {
   int i;
-
   for (i = 0; i < n; i++) {
     // If they don't match, end the loop
     if (*s2 == '\0') {

@@ -30,7 +30,7 @@ typedef struct file_descriptor {
 } file_descriptor;
 
 #define FILE_FAIL -1
-#define FILE_EOF -1
+#define FILE_EOF -2
 #define FILE_SUCCESS 1
 
 #endif
