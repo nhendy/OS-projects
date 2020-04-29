@@ -72,6 +72,7 @@ void main(int argc, char *argv[]) {
   for (i = sb.dfs_start_block_inodes; i < sb.dfs_start_block_fbv; ++i) {
     WriteBlockOrDie(i, &dfs_b);
   }
+  bzero(&dfs_b, sizeof(dfs_block));
 
   // Next, setup free block vector (fbv) and write free block vector to the
   // disk
@@ -119,8 +120,11 @@ int FdiskWriteBlock(uint32 blocknum, dfs_block *b) {
   Printf("Writing %d physical disk blocks, dfs block num %d\n",
          disk_blocks_per_df_block, blocknum);
   for (i = 0; i < disk_blocks_per_df_block; ++i) {
-    bcopy(&(b->data[i * sizeof(disk_block)]), &db, sizeof(disk_block));
-    if (disk_write_block(blocknum * disk_blocks_per_df_block + i, &db.data) ==
+    bcopy(&(b->data[i * sizeof(disk_block)]), db.data, sizeof(disk_block));
+    Printf("Writing block %d, %c\n", blocknum * disk_blocks_per_df_block + i,
+           db.data[0]);
+
+    if (disk_write_block(blocknum * disk_blocks_per_df_block + i, db.data) ==
         DISK_FAIL) {
       Printf("Failed to write physical disk block %i\n", i);
       return DISK_FAIL;

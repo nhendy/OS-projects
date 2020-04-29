@@ -841,6 +841,8 @@ void main(int argc, char *argv[]) {
 
   DfsModuleInit();
   dbprintf('i', "After initializing dfs filesystem.\n");
+  FileModuleInit();
+  dbprintf('i', "After initializing files library.\n");
 
   // Setup command line arguments
   if (userprog != (char *)0) {

@@ -16,6 +16,12 @@ extern void SetTimer(int);
 extern char debugstr[];
 
 #define ASSERT(cond, s) (cond ? 0 : printf("%s: %s\n", __FUNCTION__, s))
+#define LOG(format, args...)                                \
+  printf("[%s|%s|%d]: ", __FILE__, __FUNCTION__, __LINE__); \
+  printf(format, ##args)
+#define DLOG(flag, format, args...)                                 \
+  dbprintf(flag, "[%s|%s|%d]: ", __FILE__, __FUNCTION__, __LINE__); \
+  dbprintf(flag, format, ##args)
 
 // dbprintf() is a VERY useful macro.  It gets used as follows:
 // dbprintf ('x', "This prints %d and %x\n", val1, val2);
