@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+echo "========= Compiling the OS ======"
+cd flat/os && make
+cd -
+
+echo "======== Running os tests ======="
+cd flat/apps/ostests && make run
+cd -
+
+echo "======== Running file tests ======="
+cd flat/apps/file_test && make run
+cd -
