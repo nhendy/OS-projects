@@ -5,19 +5,18 @@
 #include "dfs.h"
 
 #define BUFFSIZE 2048
-#define KRED "\x1B[31m"
-#define KGRN "\x1B[32m"
-#define RESET "\x1B[0m"
 
 typedef void (*function_ptr_t)();
 function_ptr_t tests[100];
 int num_tests = 0;
+int num_failures = 0;
 
 #define EXPECT_TRUE(val, message_format, args...)             \
   if (val) {                                                  \
     printf(KGRN "[%s|%d]: SUCCESS ", __FUNCTION__, __LINE__); \
   } else {                                                    \
     printf(KRED "[%s|%d]: FAIL: ", __FUNCTION__, __LINE__);   \
+    num_failures++;                                           \
     printf(message_format, ##args);                           \
   }                                                           \
   printf("\n");                                               \
@@ -28,6 +27,7 @@ int num_tests = 0;
     printf(KGRN "[%s|%d]: SUCCESS ", __FUNCTION__, __LINE__);     \
   } else {                                                        \
     printf(KRED "[%s|%d]: FATAL FAIL: ", __FUNCTION__, __LINE__); \
+    num_failures++;                                               \
     printf(message_format, ##args);                               \
     printf("\n");                                                 \
     printf(RESET);                                                \
@@ -448,5 +448,14 @@ void RunOSTests() {
   setupTests();
   LOG("Num tests: %d\n", num_tests);
   runAllTests();
+
+  printf(KGRN
+         "\n\n================================================================="
+         "=================================\n");
+  printf("Os tests:                    %d succeeded, %d failed \n",
+         num_tests - num_failures, num_failures);
+  printf(
+      "========================================================================"
+      "==========================\n\n" RESET);
   return;
 }

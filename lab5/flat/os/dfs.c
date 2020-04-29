@@ -19,21 +19,21 @@ static inline uint32 invert(uint32 n) { return n ^ negativeone; }
 #define DO_OR_DIE(result, death_val, death_format, args...) \
   do {                                                      \
     if (result == death_val) {                              \
-      LOG(death_format, ##args);                            \
+      ELOG(death_format, ##args);                           \
       GracefulExit();                                       \
     }                                                       \
   } while (0)
 #define DO_OR_FAIL(result, death_val, death_format, args...) \
   do {                                                       \
     if (result == death_val) {                               \
-      LOG(death_format, ##args);                             \
+      ELOG(death_format, ##args);                            \
       return death_val;                                      \
     }                                                        \
   } while (0)
 #define LOCK_OR_FAIL(locking_function, death_val, death_format, args...) \
   do {                                                                   \
     if (locking_function == SYNC_FAIL) {                                 \
-      LOG(death_format, ##args);                                         \
+      ELOG(death_format, ##args);                                        \
       return death_val;                                                  \
     }                                                                    \
   } while (0)
@@ -41,7 +41,7 @@ static inline uint32 invert(uint32 n) { return n ^ negativeone; }
 #define CHECK_FS_VALID_OR_FAIL(format, args...) \
   do {                                          \
     if (!DfsIsValid()) {                        \
-      LOG(format, ##args);                      \
+      ELOG(format, ##args);                     \
       return DFS_FAIL;                          \
     }                                           \
   } while (0)
@@ -373,7 +373,7 @@ uint32 DfsInodeOpen(char *filename) {
   CHECK_FS_VALID_OR_FAIL("File system  already closed. Failing..\n");
   if (dstrlen(filename) > DFS_INODE_MAX_FILENAME) return DFS_FAIL;
   if ((handle = DfsInodeFilenameExists(filename)) != DFS_FAIL) {
-    LOG("Returning handle %d\n", handle);
+    DLOG('f', "Returning handle %d\n", handle);
     return handle;
   }
 
@@ -560,7 +560,7 @@ int DfsInodeWriteBytes(uint32 handle, void *mem, int start_byte,
 uint32 DfsInodeFilesize(uint32 handle) {
   if (!DfsInodeIsValid(handle)) return DFS_FAIL;
   if (!inodes[handle].inuse) return DFS_FAIL;
-  LOG("size %d\n", inodes[handle].size);
+  DLOG('f', "size %d\n", inodes[handle].size);
   return inodes[handle].size;
 }
 
