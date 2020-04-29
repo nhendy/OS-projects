@@ -254,7 +254,7 @@ uint32 DfsAllocateBlock() {
   // Release lock
   LOCK_OR_FAIL(LockHandleRelease(fbv_lock), DFS_FAIL,
                "Failed to release lock\n");
-  DLOG("Allocated dfs block %d\n", i * 32 + bitnum);
+  DLOG('f', "Allocated dfs block %d\n", i * 32 + bitnum);
 
   return (i * 32 + bitnum);
 }
@@ -478,8 +478,8 @@ int DfsInodeReadBytes(uint32 handle, void *mem, int start_byte, int num_bytes) {
       LOG("Failed to translate block\n");
       return DFS_FAIL;
     }
-    DLOG("Cursor: %d, start_byte: %d, eof %d, offset %d , block %d\n", cursor,
-         start_byte, eof, cursor % sb.dfs_block_size,
+    DLOG('f', "Cursor: %d, start_byte: %d, eof %d, offset %d , block %d\n",
+         cursor, start_byte, eof, cursor % sb.dfs_block_size,
          cursor / sb.dfs_block_size);
     if (virtual_block == 0) return DFS_FAIL;
 
@@ -538,11 +538,12 @@ int DfsInodeWriteBytes(uint32 handle, void *mem, int start_byte,
 
     bcopy(&(mem_bytes[cursor - start_byte]),
           dfs_b.data + cursor % sb.dfs_block_size, bytes_to_write);
-    DLOG("Cursor: %d, start_byte: %d, eof %d, offset %d, bytes to write %d\n",
+    DLOG('f',
+         "Cursor: %d, start_byte: %d, eof %d, offset %d, bytes to write %d\n",
          cursor, start_byte, eof, cursor % sb.dfs_block_size, bytes_to_write);
 
     cursor += bytes_to_write;
-    DLOG("Writing bytes to %d\n", virtual_block);
+    DLOG('f', "Writing bytes to %d\n", virtual_block);
     DFS_DO_OR_FAIL(DfsWriteBlock(virtual_block, &dfs_b),
                    "Failed to write virtual block\n");
   }
@@ -589,6 +590,7 @@ uint32 DfsInodeAllocateVirtualBlock(uint32 handle, uint32 virtual_blocknum) {
   }
 
   if (inodes[handle].indirect_block == 0) {
+    DLOG('f', "Allocating indirect block\n");
     inodes[handle].indirect_block = DfsAllocateBlock();
     bzero(&dfs_b, sizeof(dfs_block));
   } else {
