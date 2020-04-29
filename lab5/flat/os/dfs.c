@@ -96,6 +96,7 @@ void DfsModuleInit() {
   DfsInvalidate();
   fbv_lock = LockCreate();
   inode_lock = LockCreate();
+  LOG("Number of max dfs blocks %d\n", DFS_MAX_NUM_BLOCKS);
   DfsOpenFileSystem();
 }
 
@@ -212,7 +213,7 @@ int DfsCloseFileSystem() {
 
   DumpSuperBlock();
   DfsInvalidate();
-  return DFS_FAIL;
+  return DFS_SUCCESS;
 }
 
 //-----------------------------------------------------------------
@@ -241,7 +242,7 @@ uint32 DfsAllocateBlock() {
     LOCK_OR_FAIL(LockHandleRelease(fbv_lock), DFS_FAIL,
                  "Failed to release lock\n");
     LOG("No free blocks\n");
-    GracefulExit();
+    /* GracefulExit(); */
     return DFS_FAIL;
   }
 
@@ -271,7 +272,7 @@ int DfsFreeBlock(uint32 blocknum) {
   }
   if (!IsBlockAllocated(blocknum)) {
     LOG("Block %d is not allocated\n");
-    GracefulExit();
+    /* GracefulExit(); */
     return DFS_FAIL;
   }
   LOCK_OR_FAIL(LockHandleAcquire(fbv_lock), DFS_FAIL,
@@ -349,6 +350,7 @@ uint32 DfsInodeFilenameExists(char *filename) {
   int i;
 
   CHECK_FS_VALID_OR_FAIL("File system  already closed. Failing..\n");
+  if (dstrlen(filename) > DFS_INODE_MAX_FILENAME) return DFS_FAIL;
   for (i = 0; i < sizeof(inodes) / sizeof(inodes[0]); ++i) {
     if (inodes[i].inuse &&
         dstrncmp(filename, inodes[i].filename, dstrlen(filename)) == 0) {
@@ -369,8 +371,9 @@ uint32 DfsInodeFilenameExists(char *filename) {
 uint32 DfsInodeOpen(char *filename) {
   uint32 handle;
   CHECK_FS_VALID_OR_FAIL("File system  already closed. Failing..\n");
+  if (dstrlen(filename) > DFS_INODE_MAX_FILENAME) return DFS_FAIL;
   if ((handle = DfsInodeFilenameExists(filename)) != DFS_FAIL) {
-    LOG("Returning handle %s\n", handle);
+    LOG("Returning handle %d\n", handle);
     return handle;
   }
 
@@ -405,6 +408,7 @@ uint32 DfsInodeOpen(char *filename) {
 int DfsInodeDelete(uint32 handle) {
   int i;
   dfs_block dfs_b;
+  block_idx_t *indirect_table;
   CHECK_FS_VALID_OR_FAIL("File system  already closed. Failing..\n");
   if (!DfsInodeIsValid(handle)) return DFS_FAIL;
 
@@ -418,23 +422,29 @@ int DfsInodeDelete(uint32 handle) {
   for (i = 0; i < sizeof(inodes[handle].virtual_blocks) /
                       sizeof(inodes[handle].virtual_blocks[0]);
        ++i) {
-    DFS_DO_OR_FAIL(DfsFreeBlock(inodes[handle].virtual_blocks[i]),
-                   "Failed to free block\n");
+    if (inodes[handle].virtual_blocks[i] != 0)
+      DFS_DO_OR_FAIL(DfsFreeBlock(inodes[handle].virtual_blocks[i]),
+                     "Failed to free virtual block %d dfs block %d\n", i,
+                     inodes[handle].virtual_blocks[i]);
   }
-  // Read block containing indirect blocks
-  DFS_DO_OR_FAIL(DfsReadBlock(inodes[handle].indirect_block, &dfs_b),
-                 "Failed to read indirect block\n");
-  // Free indirect blocks
-  for (i = 0; i < sizeof(dfs_block) / sizeof(block_idx_t); ++i) {
-    // Read sizeof(block_idx_t) at a time
-    DFS_DO_OR_FAIL(DfsFreeBlock(((block_idx_t *)dfs_b.data)[i]),
-                   "Failed to free block\n");
+  if (inodes[handle].indirect_block != 0) {
+    // Read block containing indirect blocks
+    DFS_DO_OR_FAIL(DfsReadBlock(inodes[handle].indirect_block, &dfs_b),
+                   "Failed to read indirect block\n");
+    indirect_table = (block_idx_t *)dfs_b.data;
+    // Free indirect blocks
+    for (i = 0; i < sizeof(dfs_block) / sizeof(block_idx_t); ++i) {
+      // Read sizeof(block_idx_t) at a time
+      if (indirect_table[i] != 0)
+        DFS_DO_OR_FAIL(DfsFreeBlock(indirect_table[i]),
+                       "Failed to free indirect block\n");
+    }
   }
   // Zero out inode
   bzero(&inodes[handle], sizeof(dfs_inode));
   LOCK_OR_FAIL(LockHandleRelease(inode_lock), DFS_FAIL,
                "Failed to release inode_lock.\n");
-  return DFS_FAIL;
+  return DFS_SUCCESS;
 }
 
 void PrintArray(char *arry, int n) {
@@ -464,13 +474,13 @@ int DfsInodeReadBytes(uint32 handle, void *mem, int start_byte, int num_bytes) {
 
   while (cursor < eof) {
     if ((virtual_block = DfsInodeTranslateVirtualToFilesys(
-                             handle, cursor / sb.dfs_block_size) == DFS_FAIL)) {
+             handle, cursor / sb.dfs_block_size)) == DFS_FAIL) {
       LOG("Failed to translate block\n");
       return DFS_FAIL;
     }
-    LOG("Cursor: %d, start_byte: %d, eof %d, offset %d \n", cursor, start_byte,
-        eof, cursor % sb.dfs_block_size);
-    LOG("here %d\n", virtual_block);
+    DLOG("Cursor: %d, start_byte: %d, eof %d, offset %d , block %d\n", cursor,
+         start_byte, eof, cursor % sb.dfs_block_size,
+         cursor / sb.dfs_block_size);
     if (virtual_block == 0) return DFS_FAIL;
 
     DFS_DO_OR_FAIL(DfsReadBlock(virtual_block, &dfs_b),
@@ -506,6 +516,8 @@ int DfsInodeWriteBytes(uint32 handle, void *mem, int start_byte,
 
   if (!DfsInodeIsValid(handle)) return DFS_FAIL;
   if (!inodes[handle].inuse) return DFS_FAIL;
+  if (start_byte < 0) return DFS_FAIL;
+  if (num_bytes < 0) return DFS_FAIL;
   // TODO: (nhendy) > or >=
   if (eof >= DFS_MAX_FILESYSTEM_SIZE) return DFS_FAIL;
   while (cursor < eof) {
@@ -526,11 +538,11 @@ int DfsInodeWriteBytes(uint32 handle, void *mem, int start_byte,
 
     bcopy(&(mem_bytes[cursor - start_byte]),
           dfs_b.data + cursor % sb.dfs_block_size, bytes_to_write);
-    LOG("Cursor: %d, start_byte: %d, eof %d, offset %d, bytes to write %d\n",
-        cursor, start_byte, eof, cursor % sb.dfs_block_size, bytes_to_write);
+    DLOG("Cursor: %d, start_byte: %d, eof %d, offset %d, bytes to write %d\n",
+         cursor, start_byte, eof, cursor % sb.dfs_block_size, bytes_to_write);
 
     cursor += bytes_to_write;
-    LOG("Writing bytes to %d\n", virtual_block);
+    DLOG("Writing bytes to %d\n", virtual_block);
     DFS_DO_OR_FAIL(DfsWriteBlock(virtual_block, &dfs_b),
                    "Failed to write virtual block\n");
   }
@@ -563,6 +575,7 @@ uint32 DfsInodeFilesize(uint32 handle) {
 
 uint32 DfsInodeAllocateVirtualBlock(uint32 handle, uint32 virtual_blocknum) {
   dfs_block dfs_b;
+  uint32 block;
   if (!DfsInodeIsValid(handle)) return DFS_FAIL;
   if (!inodes[handle].inuse) return DFS_FAIL;
   if (virtual_blocknum >=

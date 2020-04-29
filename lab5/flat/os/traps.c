@@ -87,6 +87,7 @@ int TrapFileOpenHandler(uint32 *trapArgs, int sysMode) {
   }
   dbprintf('F', "TrapFileOpenHandler: calling FileOpen(\"%s\", \"%s\")\n",
            filename, mode);
+  LOG("Mode : %s\n", mode);
   return FileOpen(filename, mode);
 }
 
