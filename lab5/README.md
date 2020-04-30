@@ -29,3 +29,11 @@ Assuming that file specified in `DISK_FILENAME` exists and formatted properly, y
 ```sh
 ./run_tests.sh
 ```
+
+#### Interpreting results:
+
+The `run_tests.sh` scripts runs both `ostests` and `file_tests`. If a test fails you'll see a message in red of the format 
+`[function_name:line_no]: FAIL: <error_message>`. If it succeeds, you'll see in green `[function_name:line_no]: SUCCESS`
+After each test is done a summary is reported concluding the number of tests that passed and tests that failed. They should all be succeeding.
+
+Don't be alarmed if you see an error message in the middle coming out of the kernel code. A lot of the test cases are testing intentional failure modes. 
