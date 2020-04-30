@@ -15,10 +15,18 @@ extern void SetTimer(int);
 
 extern char debugstr[];
 
+#define KRED "\x1B[31m"
+#define KGRN "\x1B[32m"
+#define RESET "\x1B[0m"
+
 #define ASSERT(cond, s) (cond ? 0 : printf("%s: %s\n", __FUNCTION__, s))
 #define LOG(format, args...)                                \
   printf("[%s|%s|%d]: ", __FILE__, __FUNCTION__, __LINE__); \
   printf(format, ##args)
+#define ELOG(format, args...)                                    \
+  printf(KRED "[%s|%s|%d]: ", __FILE__, __FUNCTION__, __LINE__); \
+  printf(format, ##args);                                        \
+  printf(RESET)
 #define DLOG(flag, format, args...)                                 \
   dbprintf(flag, "[%s|%s|%d]: ", __FILE__, __FUNCTION__, __LINE__); \
   dbprintf(flag, format, ##args)

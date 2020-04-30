@@ -764,6 +764,7 @@ void main(int argc, char *argv[]) {
   int numargs = 0;
   int allargs_offset = 0;
   char allargs[SIZE_ARG_BUFF];
+  int disable_dfs = 0;
 
   debugstr[0] = '\0';
 
@@ -811,6 +812,11 @@ void main(int argc, char *argv[]) {
           userprog = argv[++i];
           base = i;  // Save the location of the user program's name
           break;
+        case 'x': {
+          printf("===========================-x disables DfsModule\n");
+          disable_dfs = 1;
+          break;
+        }
         default:
           printf("Option %s not recognized.\n", argv[i]);
           break;
@@ -839,8 +845,10 @@ void main(int argc, char *argv[]) {
   FsWrite(i, buf, 80);
   FsClose(i);
 
-  DfsModuleInit();
-  dbprintf('i', "After initializing dfs filesystem.\n");
+  if (!disable_dfs) {
+    DfsModuleInit();
+    dbprintf('i', "After initializing dfs filesystem.\n");
+  }
   FileModuleInit();
   dbprintf('i', "After initializing files library.\n");
 

@@ -21,9 +21,9 @@ typedef enum {
 typedef struct file_descriptor {
   // STUDENT: put file descriptor info here
   char filename[FILE_MAX_FILENAME_LENGTH];
-  uint32 inode_handle;
-  uint32 cursor;
-  uint32 pid;
+  unsigned int inode_handle;
+  unsigned int cursor;
+  unsigned int pid;
   char eof;
   char mode;
   char inuse;
