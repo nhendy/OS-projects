@@ -18,6 +18,7 @@ extern char debugstr[];
 #define KRED "\x1B[31m"
 #define KGRN "\x1B[32m"
 #define RESET "\x1B[0m"
+#define KCYN "\x1B[36m"
 
 #define ASSERT(cond, s) (cond ? 0 : printf("%s: %s\n", __FUNCTION__, s))
 #define LOG(format, args...)                                \

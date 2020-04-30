@@ -46,7 +46,7 @@ const char* kSmallString = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 void TestAllocateAllBlocks() {
   int i;
-  LOG("Allocating 16500 blocks\n");
+  printf(KCYN "\n\n Testing Allocate Block...\n\n" RESET);
   for (i = 0; i < 16500; i++) {
     LOG("RunOSTests: Allocating block %d\n", i);
     if (i < DFS_MAX_NUM_BLOCKS) {
@@ -64,7 +64,7 @@ void TestAllocateAllBlocks() {
 void TestFreeBlocks() {
 
   uint32 test_block;
-  printf(KGRN "---------------------------------%s\n" RESET, __FUNCTION__);
+  printf(KCYN "\n\n Testing Free Block...\n\n" RESET);
   test_block = DfsAllocateBlock();
   EXPECT_TRUE_OR_FAIL(test_block != DFS_FAIL,
                       "Failed to allocate a block. Maybe reformat disk?");
@@ -83,6 +83,7 @@ void TestFreeBlocks() {
 }
 
 void TestInodeFileExists() {
+  printf(KCYN "\n\n Testing Inode File Exists...\n\n" RESET);
   EXPECT_TRUE(DfsInodeFilenameExists(kNonExistenFileOne) == DFS_FAIL,
               "%s should not exist", kNonExistenFileOne);
   EXPECT_TRUE(DfsInodeFilenameExists(kNonExistenFileTwo) == DFS_FAIL,
@@ -94,6 +95,7 @@ void TestInodeFileExists() {
 }
 
 void TestInodeOpen() {
+  printf(KCYN "\n\n Testing Inode Open...\n\n" RESET);
   EXPECT_TRUE(DfsInodeOpen("heep.txt") != DFS_FAIL, "Failed to open heep.txt");
   EXPECT_TRUE(DfsInodeOpen(kEmptyFile) != DFS_FAIL, "Failed to open %s",
               kEmptyFile);
@@ -108,6 +110,7 @@ void TestInodeOpen() {
 void TestInodeFileSize() {
   uint32 test_inode;
   test_inode = DfsInodeFilenameExists(kEmptyFile);
+  printf(KCYN "\n\n Testing Inode FileSize...\n\n" RESET);
   EXPECT_TRUE_OR_FAIL(test_inode != DFS_FAIL, "Failed to find file %s",
                       kEmptyFile);
   EXPECT_TRUE(DfsInodeFilesize(test_inode) == 0, "File %s should be empty",
@@ -124,7 +127,7 @@ void TestReadWriteScenarioOne() {
   char readbuff[BUFFSIZE];
   uint32 test_inode = DfsInodeOpen(kNonEmptyFile);
   uint32 test_size;
-  LOG("ostests: Starting INODE SCENARIO 1\n");
+  printf(KCYN "\n\n Testing Scenario 1...\n\n" RESET);
   EXPECT_TRUE_OR_FAIL(test_inode != DFS_FAIL, "Failed to open file %s",
                       kNonEmptyFile);
   EXPECT_TRUE_OR_FAIL(DfsInodeFilesize(test_inode) == 0,
@@ -156,7 +159,7 @@ void TestReadWriteScenarioTwo() {
   uint32 test_inode = DfsInodeOpen(kNonEmptyFile);
   uint32 test_size;
   const uint32 kStartByte = DFS_BLOCKSIZE * 2;
-  LOG("ostests: Starting INODE SCENARIO 2\n");
+  printf(KCYN "\n\n Testing Scenario 2...\n\n" RESET);
   EXPECT_TRUE_OR_FAIL(test_inode != DFS_FAIL, "Failed to open file %s",
                       kNonEmptyFile);
   EXPECT_TRUE_OR_FAIL(DfsInodeFilesize(test_inode) == dstrlen(kSmallString),
@@ -211,6 +214,7 @@ void TestReadWriteScenarioThree() {
   uint32 test_size;
   const uint32 kStartByte = DFS_BLOCKSIZE * 3 + 277;
   LOG("ostests: Starting INODE SCENARIO 3\n");
+  printf(KCYN "\n\n Testing Scenario 3...\n\n" RESET);
   EXPECT_TRUE_OR_FAIL(test_inode != DFS_FAIL, "Failed to open file %s",
                       kNonEmptyFile);
   EXPECT_TRUE_OR_FAIL(DfsInodeFilesize(test_inode) == 0,
@@ -246,6 +250,7 @@ void TestReadWriteScenarioFour() {
   uint32 test_size;
   const uint32 kStartByte = DFS_BLOCKSIZE - 4;
   LOG("ostests: Starting INODE SCENARIO 4\n");
+  printf(KCYN "\n\n Testing Scenario 4...\n\n" RESET);
   EXPECT_TRUE_OR_FAIL(test_inode != DFS_FAIL, "Failed to open file %s",
                       kNonEmptyFile);
   EXPECT_TRUE_OR_FAIL(DfsInodeFilesize(test_inode) == 0,
@@ -280,6 +285,7 @@ void TestReadWriteScenarioFive() {
   uint32 test_inode = DfsInodeOpen(kNonEmptyFile);
   uint32 test_size;
   const uint32 kStartByte = DFS_BLOCKSIZE * 14;
+  printf(KCYN "\n\n Testing Scenario 5...\n\n" RESET);
   LOG("ostests: Starting INODE SCENARIO 5\n");
   EXPECT_TRUE_OR_FAIL(test_inode != DFS_FAIL, "Failed to open file %s",
                       kNonEmptyFile);
@@ -316,6 +322,7 @@ void TestReadWriteScenarioSix() {
   uint32 test_size;
   const uint32 kStartByte = DFS_BLOCKSIZE * 9 + DFS_BLOCKSIZE - 4;
   LOG("ostests: Starting INODE SCENARIO 6\n");
+  printf(KCYN "\n\n Testing Scenario 6...\n\n" RESET);
   EXPECT_TRUE_OR_FAIL(test_inode != DFS_FAIL, "Failed to open file %s",
                       kNonEmptyFile);
   EXPECT_TRUE_OR_FAIL(DfsInodeFilesize(test_inode) == 0,
@@ -350,6 +357,7 @@ void TestReadWriteScenarioSeven() {
   uint32 test_inode = DfsInodeOpen(kNonEmptyFile);
   uint32 test_size;
   const uint32 kStartByte = 0;
+  printf(KCYN "\n\n Testing Scenario 7...\n\n" RESET);
   dstrncpy(writebuff, "Lorem ipsum dolor sit amet, consectetur adipiscing
   elit. Morbi vestibulum, massa nec porta blandit, nibh turpis faucibus
   sapien, nec finibus eros nibh a massa. Aliquam sagittis ligula eu ipsum
@@ -414,6 +422,7 @@ void TestReadWriteScenarioSeven() {
 
 void TestOpenDelete() {
   uint32 test_inode = DfsInodeOpen(kNonEmptyFile);
+  printf(KCYN "\n\n Testing Inode Open and Delete...\n\n" RESET);
   EXPECT_TRUE_OR_FAIL(test_inode != DFS_FAIL, "Failed to open file %s",
                       kNonEmptyFile);
   EXPECT_TRUE(DfsInodeDelete(test_inode) != DFS_FAIL, "Failed to delete inode");
