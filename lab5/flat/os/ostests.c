@@ -10,8 +10,10 @@ typedef void (*function_ptr_t)();
 function_ptr_t tests[100];
 int num_tests = 0;
 int num_failures = 0;
+int num_checks = 0;
 
 #define EXPECT_TRUE(val, message_format, args...)             \
+  num_checks++;                                               \
   if (val) {                                                  \
     printf(KGRN "[%s|%d]: SUCCESS ", __FUNCTION__, __LINE__); \
   } else {                                                    \
@@ -23,6 +25,7 @@ int num_failures = 0;
   printf(RESET)
 
 #define EXPECT_TRUE_OR_FAIL(val, message_format, args...)         \
+  num_checks++;                                                   \
   if (val) {                                                      \
     printf(KGRN "[%s|%d]: SUCCESS ", __FUNCTION__, __LINE__);     \
   } else {                                                        \
@@ -467,7 +470,7 @@ void RunOSTests() {
          "\n\n================================================================="
          "=================================\n");
   printf("Os tests:                    %d succeeded, %d failed \n",
-         num_tests - num_failures, num_failures);
+         num_checks - num_failures, num_failures);
   printf(
       "========================================================================"
       "==========================\n\n" RESET);

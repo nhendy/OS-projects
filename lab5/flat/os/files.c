@@ -181,6 +181,7 @@ int FileRead(int handle, void *mem, int num_bytes) {
   bytes_to_read = min(fd->cursor + num_bytes,
                       DfsInodeFilesize(fd->inode_handle) - fd->cursor);
 
+  DLOG("Reading %d bytes \n ", bytes_to_read);
   // Read
   DfsInodeReadBytes(fd->inode_handle, mem, fd->cursor, bytes_to_read);
   // Update cursor
@@ -210,6 +211,7 @@ int FileWrite(int handle, void *mem, int num_bytes) {
 
   // Clamp num bytes to read at filesize
   bytes_to_write = min(fd->cursor + num_bytes, FILE_MAX_READWRITE_BYTES);
+  DLOG("Writing %d, re: %d\n", bytes_to_write, num_bytes);
   DfsInodeWriteBytes(fd->inode_handle, mem, fd->cursor, bytes_to_write);
   // Update cursor
   fd->cursor += bytes_to_write;
