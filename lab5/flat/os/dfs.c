@@ -23,6 +23,13 @@ static inline uint32 invert(uint32 n) { return n ^ negativeone; }
       GracefulExit();                                       \
     }                                                       \
   } while (0)
+#define CHECK_OR_DIE(result, death_format, args...) \
+  do {                                              \
+    if (!result) {                                  \
+      ELOG(death_format, ##args);                   \
+      GracefulExit();                               \
+    }                                               \
+  } while (0)
 #define DO_OR_FAIL(result, death_val, death_format, args...) \
   do {                                                       \
     if (result == death_val) {                               \
@@ -547,7 +554,8 @@ int DfsInodeWriteBytes(uint32 handle, void *mem, int start_byte,
     DFS_DO_OR_FAIL(DfsWriteBlock(virtual_block, &dfs_b),
                    "Failed to write virtual block\n");
   }
-  inodes[handle].size += cursor - start_byte;
+  CHECK_OR_DIE(eof == cursor, "Must end at eof!! Exiting...");
+  inodes[handle].size = eof;
   return cursor - start_byte;
 }
 
