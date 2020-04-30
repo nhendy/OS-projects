@@ -180,7 +180,7 @@ void TestReadWriteScenarioTwo() {
               "Whatever was read is different");
   test_size = DfsInodeFilesize(test_inode);
 
-  EXPECT_TRUE(test_size == dstrlen(readbuff) * 2,
+  EXPECT_TRUE(test_size == kStartByte + dstrlen(readbuff),
               "File size not update correctly");
 
   // Read what was written in scenario #1
@@ -235,7 +235,8 @@ void TestReadWriteScenarioThree() {
               "Whatever was read is different");
   test_size = DfsInodeFilesize(test_inode);
 
-  EXPECT_TRUE(test_size == dstrlen(readbuff), "File size not update correctly");
+  EXPECT_TRUE(test_size == kStartByte + dstrlen(readbuff),
+              "File size not update correctly");
 
   // NOTE: need to delete inode here because subsequent tests will not rely on
   // previous ones
@@ -271,7 +272,8 @@ void TestReadWriteScenarioFour() {
               "Whatever was read is different");
   test_size = DfsInodeFilesize(test_inode);
 
-  EXPECT_TRUE(test_size == dstrlen(readbuff), "File size not update correctly");
+  EXPECT_TRUE(test_size == kStartByte + dstrlen(readbuff),
+              "File size not update correctly");
 
   // NOTE: need to delete inode here because subsequent tests will not rely on
   // previous ones
@@ -307,7 +309,8 @@ void TestReadWriteScenarioFive() {
               "Whatever was read is different");
   test_size = DfsInodeFilesize(test_inode);
 
-  EXPECT_TRUE(test_size == dstrlen(readbuff), "File size not update correctly");
+  EXPECT_TRUE(test_size == kStartByte + dstrlen(readbuff),
+              "File size not update correctly");
 
   // NOTE: need to delete inode here because subsequent tests will not rely on
   // previous ones
@@ -343,7 +346,8 @@ void TestReadWriteScenarioSix() {
               "Whatever was read is different");
   test_size = DfsInodeFilesize(test_inode);
 
-  EXPECT_TRUE(test_size == dstrlen(readbuff), "File size not update correctly");
+  EXPECT_TRUE(test_size == kStartByte + dstrlen(readbuff),
+              "File size not update correctly");
 
   // NOTE: need to delete inode here because subsequent tests will not rely on
   // previous ones
@@ -411,7 +415,8 @@ void TestReadWriteScenarioSeven() {
               "Whatever was read is different");
   test_size = DfsInodeFilesize(test_inode);
 
-  EXPECT_TRUE(test_size == dstrlen(readbuff), "File size not update correctly");
+  EXPECT_TRUE(test_size == kStartByte + dstrlen(readbuff),
+              "File size not update correctly");
 
   // NOTE: need to delete inode here because subsequent tests will not rely on
   // previous ones
