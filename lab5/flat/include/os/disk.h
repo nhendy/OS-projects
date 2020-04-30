@@ -18,8 +18,6 @@ typedef struct disk_block {
 #define DISK_SUCCESS 1
 #define DISK_FAIL -1
 
-static char *default_disk_image = DISK_FILENAME;
-
 int DiskBytesPerBlock();
 int DiskSize();
 int DiskCreate();

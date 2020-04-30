@@ -10,7 +10,7 @@ cd flat/os && make
 cd -
 
 echo "======== Running fdisk with Dfs Module disabled ======="
-cd flat/apps/fdisk && make run
+cd flat/apps/fdisk && make run_x
 cd -
 
 echo "======== Making disk +rwx ======="

@@ -5,13 +5,18 @@
 #define KCYN "\x1B[36m"
 #define KGRN "\x1B[32m"
 #define RESET "\x1B[0m"
+#define LOG(format, args...)                                \
+  Printf("[%s|%s|%d]: ", __FILE__, __FUNCTION__, __LINE__); \
+  Printf(format, ##args)
 
 typedef void (*function_ptr_t)();
 function_ptr_t tests[100];
 int num_tests = 0;
 int num_failures = 0;
+int num_checks = 0;
 
 #define EXPECT_TRUE(val, message_format, args...)             \
+  num_checks++;                                               \
   if (val) {                                                  \
     Printf(KGRN "[%s|%d]: SUCCESS ", __FUNCTION__, __LINE__); \
   } else {                                                    \
@@ -22,6 +27,7 @@ int num_failures = 0;
   Printf("\n" RESET)
 
 #define EXPECT_TRUE_OR_FAIL(val, message_format, args...)         \
+  num_checks++;                                                   \
   if (val) {                                                      \
     Printf(KGRN "[%s|%d]: SUCCESS ", __FUNCTION__, __LINE__);     \
   } else {                                                        \
@@ -190,6 +196,35 @@ void TestFileSeek() {
               "Woaah! reading from invalid args");
   EXPECT_TRUE(dstrncmp(kTestString, readbuff, dstrlen(kTestString)) == 0,
               "String read was different");
+  EXPECT_TRUE(file_delete(kTestFile) == FILE_SUCCESS, "Failed to delete file");
+}
+
+void TestSimpleApplication() {
+  const char *kTestFile = "simpleapplication.txt";
+  const char *kString = "Boiler Up. Hammer Down!!!";
+  char readbuff[4000];
+  unsigned int fd;
+  Printf(KCYN "\n\n Testing Simple Application...\n\n" RESET);
+  LOG(KCYN "Opening File %s in rw mode\n" RESET, kTestFile);
+  EXPECT_TRUE((fd = file_open(kTestFile, "rw")) != FILE_FAIL,
+              "Failed to open file");
+  LOG(KCYN
+      "Writing string %s , len : %d (including null terminator \\0)\n" RESET,
+      kString, dstrlen(kString) + 1);
+  EXPECT_TRUE(file_write(fd, kString, dstrlen(kString) + 1) != FILE_FAIL,
+              "Failed to write a string");
+  LOG(KCYN "Closing file %s\n" RESET, kTestFile);
+  EXPECT_TRUE(file_close(fd) != FILE_FAIL, "Failed to close file");
+  LOG(KCYN "Re opening File %s in r mode\n" RESET, kTestFile);
+  EXPECT_TRUE((fd = file_open(kTestFile, "r")) != FILE_FAIL,
+              "Failed to open file");
+  LOG(KCYN "Reading ... \n" RESET);
+  EXPECT_TRUE(file_read(fd, readbuff, dstrlen(kString) + 1) == FILE_EOF,
+              "Woaah! reading from invalid args");
+  LOG(KCYN "Read %s \n" RESET, readbuff);
+  LOG(KCYN "Deleting %s\n" RESET, kTestFile);
+  EXPECT_TRUE(file_delete(kTestFile) == FILE_SUCCESS, "Failed to delete file");
+  LOG(KCYN "Simple Application Done!%s\n" RESET, kTestFile);
 }
 
 void setupTests() {
@@ -199,6 +234,7 @@ void setupTests() {
   REGISTER_TEST(TestFileRead);
   REGISTER_TEST(TestFileDelete);
   REGISTER_TEST(TestFileSeek);
+  REGISTER_TEST(TestSimpleApplication);
 }
 
 void runAllTests() {
@@ -215,7 +251,7 @@ void main(int argc, char *argv[]) {
          "\n\n================================================================="
          "=================================\n");
   Printf("File tests:                    %d succeeded, %d failed \n",
-         num_tests - num_failures, num_failures);
+         num_checks - num_failures, num_failures);
   Printf(
       "========================================================================"
       "==========================\n\n" RESET);

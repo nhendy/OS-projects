@@ -30,7 +30,7 @@ int DiskCreate() {
   int i;
 
   // Check that you remembered to rename the filename for your group
-  filename = default_disk_image;
+  filename = DISK_FILENAME;
   if (filename[11] == 'X') {
     printf(
         "DiskCreate: you didn't change the filesystem filename in "
@@ -38,8 +38,8 @@ int DiskCreate() {
     GracefulExit();
   }
   // Open the hard disk file
-  if ((fsfd = FsOpen(filename, FS_MODE_WRITE)) < 0) {
-    printf("DiskCreate: File system %s cannot be opened!\n", filename);
+  if ((fsfd = FsOpen(DISK_FILENAME, FS_MODE_WRITE)) < 0) {
+    printf("DiskCreate: File system %s cannot be opened!\n", DISK_FILENAME);
     return DISK_FAIL;
   }
 
@@ -66,10 +66,6 @@ int DiskCreate() {
 // the number of bytes written on success, or DISK_FAIL on failure.
 //----------------------------------------------------------------------------
 
-void PrintArray(char *arry, int n) {
-  int i;
-  for (i = 0; i < n; ++i) printf("%c\n", arry[i]);
-}
 int DiskWriteBlock(uint32 blocknum, disk_block *b) {
   int fsfd = -1;
   uint32 intrvals = 0;
